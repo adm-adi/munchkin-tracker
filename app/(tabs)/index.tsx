@@ -1,6 +1,4 @@
 import { MunchkinColors, Radius, Spacing } from '@/constants/theme';
-import { useGameClient } from '@/src/hooks/useGameClient';
-import { useGameServer } from '@/src/hooks/useGameServer';
 import { t } from '@/src/i18n';
 import { useGameStore } from '@/src/stores/gameStore';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -24,9 +22,7 @@ export default function HomeScreen() {
   const [playerName, setPlayerName] = useState('');
   const [isJoining, setIsJoining] = useState(false);
 
-  const { localPlayer, createPlayer } = useGameStore();
-  const { state: serverState, startServer } = useGameServer();
-  const { state: clientState, searchForGames, connectToGame } = useGameClient();
+  const { localPlayer, createPlayer, createSession } = useGameStore();
 
   // Check for existing player
   useEffect(() => {
@@ -43,7 +39,7 @@ export default function HomeScreen() {
     }
 
     try {
-      await startServer();
+      createSession();
       router.push('/lobby');
     } catch (error) {
       Alert.alert('Error', 'No se pudo crear la partida');
@@ -57,7 +53,6 @@ export default function HomeScreen() {
       return;
     }
 
-    searchForGames();
     router.push('/join');
   };
 
@@ -71,12 +66,10 @@ export default function HomeScreen() {
     setShowNameModal(false);
 
     if (isJoining) {
-      searchForGames();
       router.push('/join');
     } else {
-      startServer().then(() => {
-        router.push('/lobby');
-      });
+      createSession();
+      router.push('/lobby');
     }
   };
 

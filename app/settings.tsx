@@ -136,7 +136,7 @@ export default function SettingsScreen() {
 
                     <TouchableOpacity
                         style={styles.menuItem}
-                        onPress={() => router.push('/monsters')}
+                        onPress={() => router.push('/scan-card')}
                     >
                         <Text style={styles.menuIcon}>👹</Text>
                         <Text style={styles.menuText}>{t('manage_monsters')}</Text>
