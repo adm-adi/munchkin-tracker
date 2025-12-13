@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
-import { BASE_MONSTERS } from '../data/monsters';
+import { ALL_EXPANSION_MONSTERS, BASE_MONSTERS } from '../data/monsters';
 import {
     Combat,
     CombatMonster,
