@@ -9,7 +9,10 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocalNetworkUsageDescription": "Munchkin Tracker needs to access your local network to connect with other players."
+      }
     },
     "android": {
       "adaptiveIcon": {
