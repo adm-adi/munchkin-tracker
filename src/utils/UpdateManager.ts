@@ -1,8 +1,8 @@
 import Constants from 'expo-constants';
 import { Alert, Linking } from 'react-native';
 
-const REPO_URL = "https://api.github.com/repos/{YOUR_GITHUB_USERNAME}/munchkin-tracker/releases/latest";
-const GITHUB_PAGE = "https://github.com/{YOUR_GITHUB_USERNAME}/munchkin-tracker/releases";
+const REPO_URL = "https://api.github.com/repos/adm-adi/munchkin-tracker/releases/latest";
+const GITHUB_PAGE = "https://github.com/adm-adi/munchkin-tracker/releases";
 
 export const checkForUpdates = async (manual = false) => {
     try {
