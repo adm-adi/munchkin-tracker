@@ -1,50 +1,72 @@
-# Welcome to your Expo app 👋
+# 🗡️ Munchkin Tracker
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Aplicación multiplayer local para llevar el control de tus partidas de Munchkin. Conecta hasta 6 jugadores en la misma red WiFi y ve las estadísticas de todos en tiempo real.
 
-## Get started
+## ✨ Características
 
-1. Install dependencies
+- 🏰 **Crear/Unirse a partidas** - Un jugador crea la partida, los demás se unen
+- 📊 **Estadísticas en tiempo real** - Nivel, equipo, raza y clase de cada jugador
+- ⚔️ **Sistema de combate** - Añade monstruos y ayudantes, calcula fuerza automáticamente
+- 👹 **Base de datos de monstruos** - Monstruos del Munchkin 1-9 con bonificaciones y mal rollo
+- 📸 **Escáner de cartas** - Escanea una carta para añadir monstruos rápidamente
+- 🎭 **Razas y clases** - Selecciona tu raza y clase con sus habilidades
+- 🔄 **Actualizaciones** - Descarga nuevas versiones desde GitHub
 
-   ```bash
-   npm install
-   ```
+## 📱 Instalación
 
-2. Start the app
+1. Descarga el APK desde [Releases](https://github.com/adm-adi/munchkin-tracker/releases)
+2. Instala en tu dispositivo Android
+3. ¡Juega!
 
-   ```bash
-   npx expo start
-   ```
+## 🎮 Cómo usar
 
-In the output, you'll find options to open the app in a
+### Crear partida
+1. Abre la app y pulsa **"Crear Partida"**
+2. Introduce tu nombre
+3. Comparte el código de conexión con tus amigos
+4. Espera a que se unan y pulsa **"Iniciar Partida"**
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+### Unirse a partida
+1. Abre la app y pulsa **"Unirse a Partida"**
+2. Introduce tu nombre
+3. Selecciona la partida o introduce la IP manualmente
+4. ¡Listo!
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+### Durante la partida
+- **+/-** para subir/bajar nivel y equipo
+- **Raza/Clase** para cambiar tu personaje
+- **Iniciar Combate** para empezar un combate
+- Añade monstruos buscando en la base de datos o escaneando cartas
 
-## Get a fresh project
-
-When you're ready, run:
+## 🛠️ Desarrollo
 
 ```bash
-npm run reset-project
+# Clonar repositorio
+git clone https://github.com/adm-adi/munchkin-tracker.git
+cd munchkin-tracker
+
+# Instalar dependencias
+npm install
+
+# Iniciar servidor de desarrollo
+npm run android
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## 📦 Generar APK
 
-## Learn more
+```bash
+# Usando EAS Build
+npm install -g eas-cli
+eas login
+eas build --platform android --profile preview
+```
 
-To learn more about developing your project with Expo, look at the following resources:
+O espera a que GitHub Actions genere el APK automáticamente al crear un tag.
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+## 📝 Licencia
 
-## Join the community
+Este proyecto es de código abierto. Munchkin® es una marca registrada de Steve Jackson Games.
 
-Join our community of developers creating universal apps.
+---
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+Hecho con ❤️ para los fans de Munchkin

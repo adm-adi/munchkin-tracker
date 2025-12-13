@@ -335,7 +335,7 @@ export const useGameStore = create<GameState>()(
 
             getAllMonsters: () => {
                 const { customMonsters } = get();
-                return [...BASE_MONSTERS, ...customMonsters];
+                return [...BASE_MONSTERS, ...ALL_EXPANSION_MONSTERS, ...customMonsters];
             },
 
             syncMonsters: (monsters: Monster[]) => {

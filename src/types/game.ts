@@ -10,7 +10,8 @@ export type Expansion =
     | 'demented'       // Munchkin 6 - Mazmorras Majaretas
     | 'cheat_hands'    // Munchkin 7 - Trampas a Dos Manos
     | 'half_horse'     // Munchkin 8 - Centrauros de la Mazmorra
-    | 'jurassic';      // Munchkin 9 - Jurásico Sarcástico
+    | 'jurassic'       // Munchkin 9 - Jurásico Sarcástico
+    | 'custom';        // User-added monsters
 
 // Race definitions
 export interface Race {
