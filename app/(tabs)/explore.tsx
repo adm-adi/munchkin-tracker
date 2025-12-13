@@ -1,112 +1,501 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { MunchkinColors, Radius, Spacing } from '@/constants/theme';
+import { useGameStore } from '@/src/stores/gameStore';
+import { Player } from '@/src/types/game';
+import { useRouter } from 'expo-router';
+import React from 'react';
+import {
+  FlatList,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 
-import { Collapsible } from '@/components/ui/collapsible';
-import { ExternalLink } from '@/components/external-link';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Fonts } from '@/constants/theme';
+// Player Card Component
+function PlayerCard({ player, isLocal }: { player: Player; isLocal: boolean }) {
+  const combatStrength = player.level + player.gearBonus;
 
-export default function TabTwoScreen() {
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#D0D0D0', dark: '#353636' }}
-      headerImage={
-        <IconSymbol
-          size={310}
-          color="#808080"
-          name="chevron.left.forwardslash.chevron.right"
-          style={styles.headerImage}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText
-          type="title"
-          style={{
-            fontFamily: Fonts.rounded,
-          }}>
-          Explore
-        </ThemedText>
-      </ThemedView>
-      <ThemedText>This app includes example code to help you get started.</ThemedText>
-      <Collapsible title="File-based routing">
-        <ThemedText>
-          This app has two screens:{' '}
-          <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> and{' '}
-          <ThemedText type="defaultSemiBold">app/(tabs)/explore.tsx</ThemedText>
-        </ThemedText>
-        <ThemedText>
-          The layout file in <ThemedText type="defaultSemiBold">app/(tabs)/_layout.tsx</ThemedText>{' '}
-          sets up the tab navigator.
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/router/introduction">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Android, iOS, and web support">
-        <ThemedText>
-          You can open this project on Android, iOS, and the web. To open the web version, press{' '}
-          <ThemedText type="defaultSemiBold">w</ThemedText> in the terminal running this project.
-        </ThemedText>
-      </Collapsible>
-      <Collapsible title="Images">
-        <ThemedText>
-          For static images, you can use the <ThemedText type="defaultSemiBold">@2x</ThemedText> and{' '}
-          <ThemedText type="defaultSemiBold">@3x</ThemedText> suffixes to provide files for
-          different screen densities
-        </ThemedText>
-        <Image
-          source={require('@/assets/images/react-logo.png')}
-          style={{ width: 100, height: 100, alignSelf: 'center' }}
-        />
-        <ExternalLink href="https://reactnative.dev/docs/images">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Light and dark mode components">
-        <ThemedText>
-          This template has light and dark mode support. The{' '}
-          <ThemedText type="defaultSemiBold">useColorScheme()</ThemedText> hook lets you inspect
-          what the user&apos;s current color scheme is, and so you can adjust UI colors accordingly.
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/develop/user-interface/color-themes/">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Animations">
-        <ThemedText>
-          This template includes an example of an animated component. The{' '}
-          <ThemedText type="defaultSemiBold">components/HelloWave.tsx</ThemedText> component uses
-          the powerful{' '}
-          <ThemedText type="defaultSemiBold" style={{ fontFamily: Fonts.mono }}>
-            react-native-reanimated
-          </ThemedText>{' '}
-          library to create a waving hand animation.
-        </ThemedText>
-        {Platform.select({
-          ios: (
-            <ThemedText>
-              The <ThemedText type="defaultSemiBold">components/ParallaxScrollView.tsx</ThemedText>{' '}
-              component provides a parallax effect for the header image.
-            </ThemedText>
-          ),
-        })}
-      </Collapsible>
-    </ParallaxScrollView>
+    <View style={[styles.playerCard, isLocal && styles.localPlayerCard]}>
+      <View style={styles.playerHeader}>
+        <Text style={styles.playerName}>
+          {player.name} {player.isHost ? '👑' : ''}
+        </Text>
+        {isLocal && <Text style={styles.youBadge}>TÚ</Text>}
+      </View>
+
+      <View style={styles.statsRow}>
+        <View style={styles.statBox}>
+          <Text style={styles.statLabel}>Nivel</Text>
+          <Text style={[styles.statValue, { color: getLevelColor(player.level) }]}>
+            {player.level}
+          </Text>
+        </View>
+
+        <View style={styles.statBox}>
+          <Text style={styles.statLabel}>Equipo</Text>
+          <Text style={styles.statValue}>+{player.gearBonus}</Text>
+        </View>
+
+        <View style={styles.statBox}>
+          <Text style={styles.statLabel}>Fuerza</Text>
+          <Text style={[styles.statValue, styles.strengthValue]}>
+            {combatStrength}
+          </Text>
+        </View>
+      </View>
+
+      <View style={styles.traitsRow}>
+        <View style={[styles.trait, player.race && styles.traitActive]}>
+          <Text style={styles.traitLabel}>
+            {player.race?.nameEs || 'Humano'}
+          </Text>
+        </View>
+        <View style={[styles.trait, player.gameClass && styles.traitActive]}>
+          <Text style={styles.traitLabel}>
+            {player.gameClass?.nameEs || 'Sin Clase'}
+          </Text>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+function getLevelColor(level: number): string {
+  if (level <= 3) return MunchkinColors.level1;
+  if (level <= 6) return MunchkinColors.level5;
+  return MunchkinColors.level10;
+}
+
+export default function GameScreen() {
+  const router = useRouter();
+  const { session, localPlayer } = useGameStore();
+
+  if (!session || !localPlayer) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyText}>No hay partida activa</Text>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => router.replace('/')}
+          >
+            <Text style={styles.backButtonText}>Volver al inicio</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const otherPlayers = session.players.filter(p => p.id !== localPlayer.id);
+
+  return (
+    <SafeAreaView style={styles.container}>
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Partida en Curso</Text>
+        <Text style={styles.headerSubtitle}>
+          {session.players.length} jugadores
+        </Text>
+      </View>
+
+      {/* Combat Banner */}
+      {session.currentCombat && (
+        <TouchableOpacity
+          style={styles.combatBanner}
+          onPress={() => router.push('/combat')}
+        >
+          <Text style={styles.combatBannerIcon}>⚔️</Text>
+          <View style={styles.combatBannerContent}>
+            <Text style={styles.combatBannerTitle}>¡Combate en curso!</Text>
+            <Text style={styles.combatBannerText}>
+              {session.players.find(p => p.id === session.currentCombat!.mainPlayerId)?.name}
+              {' '}vs {session.currentCombat.monsters.length} monstruo(s)
+            </Text>
+          </View>
+          <Text style={styles.combatBannerArrow}>→</Text>
+        </TouchableOpacity>
+      )}
+
+      {/* Local Player (Editable) */}
+      <View style={styles.localSection}>
+        <Text style={styles.sectionTitle}>Tu Personaje</Text>
+        <LocalPlayerControls player={localPlayer} />
+      </View>
+
+      {/* Other Players */}
+      {otherPlayers.length > 0 && (
+        <View style={styles.othersSection}>
+          <Text style={styles.sectionTitle}>Otros Jugadores</Text>
+          <FlatList
+            data={otherPlayers}
+            keyExtractor={(item) => item.id}
+            renderItem={({ item }) => (
+              <PlayerCard player={item} isLocal={false} />
+            )}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.playersList}
+          />
+        </View>
+      )}
+
+      {/* Action Buttons */}
+      <View style={styles.actions}>
+        {!session.currentCombat && (
+          <TouchableOpacity
+            style={styles.combatButton}
+            onPress={() => router.push('/combat')}
+          >
+            <Text style={styles.combatButtonIcon}>⚔️</Text>
+            <Text style={styles.combatButtonText}>Iniciar Combate</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    </SafeAreaView>
+  );
+}
+
+// Local Player Controls (editable)
+function LocalPlayerControls({ player }: { player: Player }) {
+  const { setPlayerLevel, setPlayerGear } = useGameStore();
+  const router = useRouter();
+  const combatStrength = player.level + player.gearBonus;
+
+  return (
+    <View style={styles.localPlayerCard}>
+      <View style={styles.playerHeader}>
+        <Text style={styles.playerName}>
+          {player.name} {player.isHost ? '👑' : ''}
+        </Text>
+      </View>
+
+      {/* Editable Stats */}
+      <View style={styles.editableStats}>
+        {/* Level Control */}
+        <View style={styles.statControl}>
+          <Text style={styles.statControlLabel}>Nivel</Text>
+          <View style={styles.counterRow}>
+            <TouchableOpacity
+              style={styles.counterButton}
+              onPress={() => setPlayerLevel(player.level - 1)}
+              disabled={player.level <= 1}
+            >
+              <Text style={styles.counterButtonText}>−</Text>
+            </TouchableOpacity>
+            <Text style={[styles.counterValue, { color: getLevelColor(player.level) }]}>
+              {player.level}
+            </Text>
+            <TouchableOpacity
+              style={styles.counterButton}
+              onPress={() => setPlayerLevel(player.level + 1)}
+              disabled={player.level >= 10}
+            >
+              <Text style={styles.counterButtonText}>+</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Gear Control */}
+        <View style={styles.statControl}>
+          <Text style={styles.statControlLabel}>Equipo</Text>
+          <View style={styles.counterRow}>
+            <TouchableOpacity
+              style={styles.counterButton}
+              onPress={() => setPlayerGear(player.gearBonus - 1)}
+              disabled={player.gearBonus <= 0}
+            >
+              <Text style={styles.counterButtonText}>−</Text>
+            </TouchableOpacity>
+            <Text style={styles.counterValue}>+{player.gearBonus}</Text>
+            <TouchableOpacity
+              style={styles.counterButton}
+              onPress={() => setPlayerGear(player.gearBonus + 1)}
+            >
+              <Text style={styles.counterButtonText}>+</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Combat Strength (computed) */}
+        <View style={styles.statControl}>
+          <Text style={styles.statControlLabel}>Fuerza</Text>
+          <Text style={styles.strengthDisplay}>{combatStrength}</Text>
+        </View>
+      </View>
+
+      {/* Race/Class Selection */}
+      <View style={styles.traitsSection}>
+        <TouchableOpacity
+          style={styles.traitButton}
+          onPress={() => router.push('/select-race')}
+        >
+          <Text style={styles.traitButtonLabel}>Raza</Text>
+          <Text style={styles.traitButtonValue}>
+            {player.race?.nameEs || 'Humano'} →
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.traitButton}
+          onPress={() => router.push('/select-class')}
+        >
+          <Text style={styles.traitButtonLabel}>Clase</Text>
+          <Text style={styles.traitButtonValue}>
+            {player.gameClass?.nameEs || 'Sin Clase'} →
+          </Text>
+        </TouchableOpacity>
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  headerImage: {
-    color: '#808080',
-    bottom: -90,
-    left: -35,
-    position: 'absolute',
+  container: {
+    flex: 1,
+    backgroundColor: MunchkinColors.backgroundDark,
   },
-  titleContainer: {
+  header: {
+    padding: Spacing.lg,
+    paddingBottom: Spacing.md,
+  },
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: MunchkinColors.textPrimary,
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    color: MunchkinColors.textSecondary,
+    marginTop: Spacing.xs,
+  },
+  emptyState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: Spacing.xl,
+  },
+  emptyText: {
+    fontSize: 18,
+    color: MunchkinColors.textSecondary,
+    marginBottom: Spacing.lg,
+  },
+  backButton: {
+    backgroundColor: MunchkinColors.primary,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.xl,
+    borderRadius: Radius.lg,
+  },
+  backButtonText: {
+    color: MunchkinColors.backgroundDark,
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  combatBanner: {
     flexDirection: 'row',
-    gap: 8,
+    alignItems: 'center',
+    backgroundColor: MunchkinColors.danger,
+    marginHorizontal: Spacing.lg,
+    borderRadius: Radius.lg,
+    padding: Spacing.md,
+    gap: Spacing.sm,
+  },
+  combatBannerIcon: {
+    fontSize: 24,
+  },
+  combatBannerContent: {
+    flex: 1,
+  },
+  combatBannerTitle: {
+    color: MunchkinColors.textPrimary,
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  combatBannerText: {
+    color: MunchkinColors.textPrimary,
+    fontSize: 12,
+    opacity: 0.9,
+  },
+  combatBannerArrow: {
+    color: MunchkinColors.textPrimary,
+    fontSize: 20,
+  },
+  localSection: {
+    padding: Spacing.lg,
+  },
+  othersSection: {
+    paddingVertical: Spacing.md,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: MunchkinColors.textSecondary,
+    marginBottom: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+  },
+  playerCard: {
+    backgroundColor: MunchkinColors.backgroundCard,
+    borderRadius: Radius.lg,
+    padding: Spacing.md,
+    marginRight: Spacing.md,
+    width: 180,
+  },
+  localPlayerCard: {
+    backgroundColor: MunchkinColors.backgroundMedium,
+    borderRadius: Radius.lg,
+    padding: Spacing.lg,
+    borderWidth: 2,
+    borderColor: MunchkinColors.primary,
+  },
+  playerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.md,
+  },
+  playerName: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: MunchkinColors.textPrimary,
+  },
+  youBadge: {
+    backgroundColor: MunchkinColors.primary,
+    color: MunchkinColors.backgroundDark,
+    fontSize: 10,
+    fontWeight: 'bold',
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 2,
+    borderRadius: Radius.sm,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: Spacing.sm,
+  },
+  statBox: {
+    alignItems: 'center',
+  },
+  statLabel: {
+    fontSize: 10,
+    color: MunchkinColors.textMuted,
+    textTransform: 'uppercase',
+  },
+  statValue: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: MunchkinColors.textPrimary,
+  },
+  strengthValue: {
+    color: MunchkinColors.playerStrength,
+  },
+  traitsRow: {
+    flexDirection: 'row',
+    gap: Spacing.xs,
+  },
+  trait: {
+    flex: 1,
+    backgroundColor: MunchkinColors.backgroundDark,
+    borderRadius: Radius.sm,
+    padding: Spacing.xs,
+    alignItems: 'center',
+  },
+  traitActive: {
+    backgroundColor: MunchkinColors.primary + '30',
+  },
+  traitLabel: {
+    fontSize: 10,
+    color: MunchkinColors.textSecondary,
+  },
+  playersList: {
+    paddingHorizontal: Spacing.lg,
+  },
+  editableStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: Spacing.lg,
+  },
+  statControl: {
+    alignItems: 'center',
+  },
+  statControlLabel: {
+    fontSize: 12,
+    color: MunchkinColors.textMuted,
+    textTransform: 'uppercase',
+    marginBottom: Spacing.xs,
+  },
+  counterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  counterButton: {
+    width: 44,
+    height: 44,
+    borderRadius: Radius.full,
+    backgroundColor: MunchkinColors.backgroundCard,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: MunchkinColors.primary,
+  },
+  counterButtonText: {
+    fontSize: 24,
+    color: MunchkinColors.primary,
+    fontWeight: 'bold',
+  },
+  counterValue: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: MunchkinColors.textPrimary,
+    minWidth: 50,
+    textAlign: 'center',
+  },
+  strengthDisplay: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: MunchkinColors.playerStrength,
+  },
+  traitsSection: {
+    flexDirection: 'row',
+    gap: Spacing.md,
+  },
+  traitButton: {
+    flex: 1,
+    backgroundColor: MunchkinColors.backgroundCard,
+    borderRadius: Radius.md,
+    padding: Spacing.md,
+  },
+  traitButtonLabel: {
+    fontSize: 10,
+    color: MunchkinColors.textMuted,
+    textTransform: 'uppercase',
+  },
+  traitButtonValue: {
+    fontSize: 14,
+    color: MunchkinColors.primary,
+    fontWeight: '600',
+    marginTop: Spacing.xs,
+  },
+  actions: {
+    padding: Spacing.lg,
+    marginTop: 'auto',
+  },
+  combatButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: MunchkinColors.accent,
+    borderRadius: Radius.lg,
+    paddingVertical: Spacing.lg,
+    gap: Spacing.sm,
+  },
+  combatButtonIcon: {
+    fontSize: 24,
+  },
+  combatButtonText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: MunchkinColors.textPrimary,
   },
 });

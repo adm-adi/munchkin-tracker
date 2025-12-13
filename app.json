@@ -1,28 +1,40 @@
 {
   "expo": {
-    "name": "munchkin-tracker",
+    "name": "Munchkin Tracker",
     "slug": "munchkin-tracker",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "munchkintracker",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
+      "bundleIdentifier": "com.admadi.munchkintracker",
       "infoPlist": {
-        "NSLocalNetworkUsageDescription": "Munchkin Tracker needs to access your local network to connect with other players."
+        "NSLocalNetworkUsageDescription": "Munchkin Tracker usa la red local para conectar jugadores en la misma partida",
+        "NSBonjourServices": [
+          "_munchkin._tcp."
+        ]
       }
     },
     "android": {
+      "package": "com.admadi.munchkintracker",
+      "versionCode": 1,
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#1a1a2e",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.INTERNET",
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.ACCESS_WIFI_STATE",
+        "android.permission.CHANGE_WIFI_MULTICAST_STATE"
+      ]
     },
     "web": {
       "output": "static",
@@ -36,9 +48,9 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff",
+          "backgroundColor": "#1a1a2e",
           "dark": {
-            "backgroundColor": "#000000"
+            "backgroundColor": "#1a1a2e"
           }
         }
       ]
@@ -46,6 +58,17 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "munchkin-tracker"
+      }
+    },
+    "updates": {
+      "url": "https://github.com/adm-adi/munchkin-tracker/releases"
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
     }
   }
 }

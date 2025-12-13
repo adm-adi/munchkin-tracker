@@ -1,57 +1,185 @@
-import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Share } from 'react-native';
+import { MunchkinColors, Radius, Spacing } from '@/constants/theme';
+import { useGameServer } from '@/src/hooks/useGameServer';
+import { t } from '@/src/i18n';
+import { useGameStore } from '@/src/stores/gameStore';
+import { APP_CONFIG, Player } from '@/src/types/game';
 import { useRouter } from 'expo-router';
-import { useGameStore, Player } from '../store/gameStore'; // Verify path
-import { networkManager } from '../utils/NetworkManager'; // Verify path: ../utils -> from app/lobby.tsx -> app/../utils -> root/utils. Correct.
+import React, { useEffect } from 'react';
+import {
+    FlatList,
+    Platform,
+    SafeAreaView,
+    Share,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
+} from 'react-native';
 
 export default function LobbyScreen() {
     const router = useRouter();
-    const { players, isHost, hostIp, myId, gameState } = useGameStore();
+    const { session, localPlayer, leaveSession } = useGameStore();
+    const { state: serverState, stopServer } = useGameServer();
 
+    // Redirect if no session
     useEffect(() => {
-        if (gameState === 'GAME') {
-            router.replace('/game');
+        if (!session) {
+            router.replace('/');
         }
-    }, [gameState]);
+    }, [session, router]);
 
-    const handleStart = () => {
-        networkManager.startGame();
+    if (!session || !localPlayer) {
+        return null;
+    }
+
+    const isHost = localPlayer.isHost;
+    const canStart = session.players.length >= 2;
+
+    const handleStartGame = () => {
+        // Navigate to game screen
+        router.replace('/(tabs)/explore');
     };
 
-    const renderItem = ({ item }: { item: Player }) => (
-        <View style={styles.playerRow}>
-            <Text style={[styles.playerName, item.id === myId && styles.me]}>
-                {item.name} {item.id === myId ? '(You)' : ''}
-            </Text>
-        </View>
-    );
+    const handleLeaveGame = () => {
+        if (isHost) {
+            stopServer();
+        }
+        leaveSession();
+        router.replace('/');
+    };
+
+    const handleShareCode = async () => {
+        try {
+            await Share.share({
+                message: `Únete a mi partida de Munchkin!\n\nIP: ${serverState.address}\nPuerto: ${serverState.port}`,
+                title: 'Munchkin Tracker - Invitación',
+            });
+        } catch (error) {
+            console.error('Error sharing:', error);
+        }
+    };
 
     return (
-        <View style={styles.container}>
-            <Text style={styles.title}>Lobby</Text>
+        <SafeAreaView style={styles.container}>
+            {/* Header */}
+            <View style={styles.header}>
+                <TouchableOpacity
+                    style={styles.backButton}
+                    onPress={handleLeaveGame}
+                >
+                    <Text style={styles.backIcon}>←</Text>
+                </TouchableOpacity>
+                <View style={styles.headerContent}>
+                    <Text style={styles.title}>{t('lobby_title')}</Text>
+                    <Text style={styles.subtitle}>
+                        {t('player_count', { count: session.players.length, max: APP_CONFIG.MAX_PLAYERS })}
+                    </Text>
+                </View>
+            </View>
 
+            {/* Host Badge */}
             {isHost && (
-                <View style={styles.hostInfo}>
-                    <Text style={styles.infoLabel}>HOST IP:</Text>
-                    <Text style={styles.ipText}>{hostIp}</Text>
-                    <Text style={styles.hint}>Tell your friends to join using this IP</Text>
+                <View style={styles.hostBadge}>
+                    <Text style={styles.hostBadgeIcon}>👑</Text>
+                    <Text style={styles.hostBadgeText}>{t('you_are_host')}</Text>
                 </View>
             )}
 
-            <Text style={styles.subtitle}>Players ({players.length})</Text>
-            <FlatList
-                data={players}
-                keyExtractor={p => p.id}
-                renderItem={renderItem}
-                style={styles.list}
-            />
+            {/* Connection Info */}
+            {isHost && serverState.isRunning && (
+                <View style={styles.connectionInfo}>
+                    <Text style={styles.connectionLabel}>Código de Conexión:</Text>
+                    <View style={styles.connectionCode}>
+                        <Text style={styles.connectionCodeText}>
+                            {serverState.address}:{serverState.port}
+                        </Text>
+                        <TouchableOpacity
+                            style={styles.shareButton}
+                            onPress={handleShareCode}
+                        >
+                            <Text style={styles.shareButtonText}>📤</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            )}
 
-            {isHost ? (
-                <TouchableOpacity style={styles.btnStart} onPress={handleStart}>
-                    <Text style={styles.btnText}>START GAME</Text>
-                </TouchableOpacity>
-            ) : (
-                <Text style={styles.waiting}>Waiting for Host to start...</Text>
+            {/* Players List */}
+            <View style={styles.playersSection}>
+                <Text style={styles.sectionTitle}>Jugadores</Text>
+                <FlatList
+                    data={session.players}
+                    keyExtractor={(item) => item.id}
+                    renderItem={({ item, index }) => (
+                        <PlayerListItem
+                            player={item}
+                            index={index}
+                            isLocal={item.id === localPlayer.id}
+                        />
+                    )}
+                    contentContainerStyle={styles.playersList}
+                />
+
+                {/* Empty Slots */}
+                {Array.from({ length: APP_CONFIG.MAX_PLAYERS - session.players.length }).map((_, i) => (
+                    <View key={`empty-${i}`} style={styles.emptySlot}>
+                        <Text style={styles.emptySlotText}>Esperando jugador...</Text>
+                    </View>
+                ))}
+            </View>
+
+            {/* Actions */}
+            <View style={styles.actions}>
+                {isHost ? (
+                    <TouchableOpacity
+                        style={[styles.startButton, !canStart && styles.startButtonDisabled]}
+                        onPress={handleStartGame}
+                        disabled={!canStart}
+                    >
+                        <Text style={styles.startButtonText}>
+                            {canStart ? t('start_game') : 'Esperando jugadores...'}
+                        </Text>
+                    </TouchableOpacity>
+                ) : (
+                    <View style={styles.waitingBox}>
+                        <Text style={styles.waitingIcon}>⏳</Text>
+                        <Text style={styles.waitingText}>Esperando a que el host inicie la partida...</Text>
+                    </View>
+                )}
+            </View>
+        </SafeAreaView>
+    );
+}
+
+function PlayerListItem({ player, index, isLocal }: { player: Player; index: number; isLocal: boolean }) {
+    const colors = [
+        MunchkinColors.raceElf,
+        MunchkinColors.classWizard,
+        MunchkinColors.classBard,
+        MunchkinColors.raceOrc,
+        MunchkinColors.classWarrior,
+        MunchkinColors.raceGnome,
+    ];
+
+    return (
+        <View style={[styles.playerItem, { borderLeftColor: colors[index % colors.length] }]}>
+            <View style={styles.playerAvatar}>
+                <Text style={styles.playerAvatarText}>
+                    {player.name.charAt(0).toUpperCase()}
+                </Text>
+            </View>
+            <View style={styles.playerInfo}>
+                <Text style={styles.playerName}>
+                    {player.name}
+                    {player.isHost && ' 👑'}
+                </Text>
+                <Text style={styles.playerStatus}>
+                    {player.isConnected ? '🟢 Conectado' : '🔴 Desconectado'}
+                </Text>
+            </View>
+            {isLocal && (
+                <View style={styles.youTag}>
+                    <Text style={styles.youTagText}>TÚ</Text>
+                </View>
             )}
         </View>
     );
@@ -60,77 +188,188 @@ export default function LobbyScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#1a1a1a',
-        padding: 20,
-        paddingTop: 60,
+        backgroundColor: MunchkinColors.backgroundDark,
     },
-    title: {
-        color: '#fff',
-        fontSize: 32,
-        fontWeight: 'bold',
-        marginBottom: 20,
-        textAlign: 'center',
-    },
-    hostInfo: {
-        backgroundColor: '#d63031',
-        padding: 20,
-        borderRadius: 12,
+    header: {
+        flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: 30,
+        padding: Spacing.lg,
+        gap: Spacing.md,
     },
-    infoLabel: {
-        color: '#fff',
-        fontSize: 16,
-        opacity: 0.8,
+    backButton: {
+        width: 44,
+        height: 44,
+        borderRadius: Radius.full,
+        backgroundColor: MunchkinColors.backgroundCard,
+        justifyContent: 'center',
+        alignItems: 'center',
     },
-    ipText: {
-        color: '#fff',
-        fontSize: 36,
-        fontWeight: 'bold',
-        letterSpacing: 2,
+    backIcon: {
+        fontSize: 24,
+        color: MunchkinColors.textPrimary,
     },
-    hint: {
-        color: '#ffdddd',
-        marginTop: 10,
-    },
-    subtitle: {
-        color: '#ffaa00',
-        fontSize: 20,
-        marginBottom: 10,
-    },
-    list: {
+    headerContent: {
         flex: 1,
     },
-    playerRow: {
-        padding: 15,
-        borderBottomWidth: 1,
-        borderBottomColor: '#333',
+    title: {
+        fontSize: 28,
+        fontWeight: 'bold',
+        color: MunchkinColors.textPrimary,
+    },
+    subtitle: {
+        fontSize: 14,
+        color: MunchkinColors.textSecondary,
+    },
+    hostBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: MunchkinColors.primary + '20',
+        marginHorizontal: Spacing.lg,
+        borderRadius: Radius.lg,
+        padding: Spacing.md,
+        gap: Spacing.sm,
+    },
+    hostBadgeIcon: {
+        fontSize: 20,
+    },
+    hostBadgeText: {
+        color: MunchkinColors.primary,
+        fontWeight: '600',
+        fontSize: 14,
+    },
+    connectionInfo: {
+        backgroundColor: MunchkinColors.backgroundCard,
+        marginHorizontal: Spacing.lg,
+        marginTop: Spacing.md,
+        borderRadius: Radius.lg,
+        padding: Spacing.md,
+    },
+    connectionLabel: {
+        fontSize: 12,
+        color: MunchkinColors.textMuted,
+        marginBottom: Spacing.xs,
+    },
+    connectionCode: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+    },
+    connectionCodeText: {
+        fontSize: 18,
+        fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+        color: MunchkinColors.primary,
+        fontWeight: 'bold',
+    },
+    shareButton: {
+        padding: Spacing.sm,
+    },
+    shareButtonText: {
+        fontSize: 20,
+    },
+    playersSection: {
+        flex: 1,
+        padding: Spacing.lg,
+    },
+    sectionTitle: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: MunchkinColors.textSecondary,
+        marginBottom: Spacing.md,
+    },
+    playersList: {
+        gap: Spacing.sm,
+    },
+    playerItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: MunchkinColors.backgroundCard,
+        borderRadius: Radius.md,
+        padding: Spacing.md,
+        borderLeftWidth: 4,
+        gap: Spacing.md,
+    },
+    playerAvatar: {
+        width: 40,
+        height: 40,
+        borderRadius: Radius.full,
+        backgroundColor: MunchkinColors.backgroundMedium,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    playerAvatarText: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: MunchkinColors.primary,
+    },
+    playerInfo: {
+        flex: 1,
     },
     playerName: {
-        color: '#fff',
-        fontSize: 18,
+        fontSize: 16,
+        fontWeight: '600',
+        color: MunchkinColors.textPrimary,
     },
-    me: {
-        color: '#0984e3',
+    playerStatus: {
+        fontSize: 12,
+        color: MunchkinColors.textSecondary,
+        marginTop: 2,
+    },
+    youTag: {
+        backgroundColor: MunchkinColors.primary,
+        paddingHorizontal: Spacing.sm,
+        paddingVertical: Spacing.xs,
+        borderRadius: Radius.sm,
+    },
+    youTagText: {
+        fontSize: 10,
         fontWeight: 'bold',
+        color: MunchkinColors.backgroundDark,
     },
-    btnStart: {
-        backgroundColor: '#27ae60',
-        padding: 20,
-        borderRadius: 12,
-        alignItems: 'center',
-        marginVertical: 20,
+    emptySlot: {
+        backgroundColor: MunchkinColors.backgroundCard + '50',
+        borderRadius: Radius.md,
+        padding: Spacing.md,
+        marginTop: Spacing.sm,
+        borderWidth: 1,
+        borderStyle: 'dashed',
+        borderColor: MunchkinColors.textMuted,
     },
-    btnText: {
-        color: '#fff',
-        fontSize: 22,
-        fontWeight: 'bold',
-    },
-    waiting: {
-        color: '#aaa',
+    emptySlotText: {
+        color: MunchkinColors.textMuted,
         textAlign: 'center',
+        fontSize: 14,
+    },
+    actions: {
+        padding: Spacing.lg,
+    },
+    startButton: {
+        backgroundColor: MunchkinColors.success,
+        borderRadius: Radius.lg,
+        paddingVertical: Spacing.lg,
+        alignItems: 'center',
+    },
+    startButtonDisabled: {
+        backgroundColor: MunchkinColors.backgroundCard,
+    },
+    startButtonText: {
         fontSize: 18,
-        marginVertical: 20,
-        fontStyle: 'italic',
-    }
+        fontWeight: 'bold',
+        color: MunchkinColors.textPrimary,
+    },
+    waitingBox: {
+        backgroundColor: MunchkinColors.backgroundCard,
+        borderRadius: Radius.lg,
+        padding: Spacing.lg,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: Spacing.sm,
+    },
+    waitingIcon: {
+        fontSize: 20,
+    },
+    waitingText: {
+        color: MunchkinColors.textSecondary,
+        fontSize: 14,
+    },
 });
