@@ -8,7 +8,6 @@ import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
   Alert,
-  Image,
   Modal,
   SafeAreaView,
   StatusBar,
@@ -84,11 +83,6 @@ export default function HomeScreen() {
       <View style={styles.content}>
         {/* Logo/Title */}
         <View style={styles.header}>
-          <Image
-            source={require('@/assets/images/skeleton_menu.png')}
-            style={styles.logo}
-            resizeMode="contain"
-          />
           <Text style={styles.title}>Munchkin</Text>
           <Text style={styles.subtitle}>Tracker</Text>
         </View>

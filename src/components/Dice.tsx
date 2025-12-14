@@ -1,4 +1,5 @@
 import { MunchkinColors, Radius, Spacing } from '@/constants/theme';
+import * as Haptics from 'expo-haptics';
 import React, { useCallback, useRef, useState } from 'react';
 import {
     Animated,
@@ -6,7 +7,6 @@ import {
     StyleSheet,
     Text,
     TouchableOpacity,
-    Vibration,
     View,
 } from 'react-native';
 
@@ -28,7 +28,7 @@ export function Dice({ onRoll, size = 80, disabled = false }: DiceProps) {
         if (isRolling || disabled) return;
 
         setIsRolling(true);
-        Vibration.vibrate(50);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
         // Reset animations
         rotateAnim.setValue(0);
@@ -76,7 +76,7 @@ export function Dice({ onRoll, size = 80, disabled = false }: DiceProps) {
             const finalValue = Math.floor(Math.random() * 6) + 1;
             setValue(finalValue);
             setIsRolling(false);
-            Vibration.vibrate([0, 50, 50, 100]);
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             onRoll?.(finalValue);
         });
     }, [isRolling, disabled, rotateAnim, scaleAnim, onRoll]);
