@@ -2,7 +2,9 @@ import { MunchkinColors, Radius, Spacing } from '@/constants/theme';
 import { DefeatOverlay, VictoryOverlay } from '@/src/components/Animations';
 import { Dice } from '@/src/components/Dice';
 import { TurnIndicator, TurnTimer } from '@/src/components/TurnTimer';
+import { useThemeColors } from '@/src/contexts/ThemeContext';
 import { useGameStore } from '@/src/stores/gameStore';
+import { useStatsStore } from '@/src/stores/statsStore';
 import { Player } from '@/src/types/game';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
@@ -75,20 +77,32 @@ function getLevelColor(level: number): string {
 export default function GameScreen() {
   const router = useRouter();
   const { session, localPlayer, nextTurn, rollDice } = useGameStore();
+  const { recordDiceRoll, processGameEnd, initializePlayer } = useStatsStore();
+  const colors = useThemeColors();
   const [showVictory, setShowVictory] = useState(false);
   const [showDefeat, setShowDefeat] = useState(false);
   const [lastDiceRoll, setLastDiceRoll] = useState<number | null>(null);
 
-  // Check for winner
+  // Initialize player stats when game starts
+  useEffect(() => {
+    if (localPlayer) {
+      initializePlayer(localPlayer.id, localPlayer.name, localPlayer.avatar);
+    }
+  }, [localPlayer, initializePlayer]);
+
+  // Check for winner and process game end
   useEffect(() => {
     if (session?.winnerId) {
+      // Process game end stats
+      processGameEnd(session, session.winnerId);
+
       if (session.winnerId === localPlayer?.id) {
         setShowVictory(true);
       } else {
         setShowDefeat(true);
       }
     }
-  }, [session?.winnerId, localPlayer?.id]);
+  }, [session?.winnerId, localPlayer?.id, session, processGameEnd]);
 
   if (!session || !localPlayer) {
     return (
@@ -113,6 +127,10 @@ export default function GameScreen() {
   const handleDiceRoll = (value: number) => {
     setLastDiceRoll(value);
     rollDice('manual');
+    // Record dice roll in stats
+    if (localPlayer) {
+      recordDiceRoll(localPlayer.id, value);
+    }
   };
 
   const handleTimeUp = () => {
