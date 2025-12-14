@@ -4,7 +4,7 @@ import { t } from '@/src/i18n';
 import { useGameStore } from '@/src/stores/gameStore';
 import { APP_CONFIG } from '@/src/types/game';
 import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import {
     ActivityIndicator,
     Alert,
@@ -12,15 +12,12 @@ import {
     SafeAreaView,
     StyleSheet,
     Text,
-    TextInput,
     TouchableOpacity,
     View,
 } from 'react-native';
 
 export default function JoinScreen() {
     const router = useRouter();
-    const [manualAddress, setManualAddress] = useState('');
-    const [manualPort, setManualPort] = useState(String(APP_CONFIG.WS_PORT));
 
     const { localPlayer } = useGameStore();
     const {
@@ -37,26 +34,16 @@ export default function JoinScreen() {
         searchForGames();
     }, [localPlayer]);
 
+    // Navigate to lobby when connected
+    useEffect(() => {
+        if (state.isConnected) {
+            router.replace('/lobby');
+        }
+    }, [state.isConnected]);
+
     const handleConnect = async (game: DiscoveredGame) => {
         try {
-            await connectToGame(game.address, game.port);
-            router.replace('/lobby');
-        } catch (error) {
-            Alert.alert('Error', 'No se pudo conectar a la partida');
-        }
-    };
-
-    const handleManualConnect = async () => {
-        if (!manualAddress.trim()) {
-            Alert.alert('Error', 'Introduce una dirección IP');
-            return;
-        }
-
-        const port = parseInt(manualPort) || APP_CONFIG.WS_PORT;
-
-        try {
-            await connectToGame(manualAddress.trim(), port);
-            router.replace('/lobby');
+            await connectToGame(game.id);
         } catch (error) {
             Alert.alert('Error', 'No se pudo conectar a la partida');
         }
@@ -75,45 +62,10 @@ export default function JoinScreen() {
                 <Text style={styles.title}>{t('join_game')}</Text>
             </View>
 
-            {/* Manual Connection */}
-            <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Conexión Manual</Text>
-                <View style={styles.manualConnect}>
-                    <TextInput
-                        style={styles.addressInput}
-                        value={manualAddress}
-                        onChangeText={setManualAddress}
-                        placeholder="192.168.1.XXX"
-                        placeholderTextColor={MunchkinColors.textMuted}
-                        keyboardType="numeric"
-                    />
-                    <Text style={styles.separator}>:</Text>
-                    <TextInput
-                        style={styles.portInput}
-                        value={manualPort}
-                        onChangeText={setManualPort}
-                        placeholder={String(APP_CONFIG.WS_PORT)}
-                        placeholderTextColor={MunchkinColors.textMuted}
-                        keyboardType="numeric"
-                    />
-                    <TouchableOpacity
-                        style={styles.connectButton}
-                        onPress={handleManualConnect}
-                        disabled={state.isConnecting}
-                    >
-                        {state.isConnecting ? (
-                            <ActivityIndicator color={MunchkinColors.backgroundDark} size="small" />
-                        ) : (
-                            <Text style={styles.connectButtonText}>Conectar</Text>
-                        )}
-                    </TouchableOpacity>
-                </View>
-            </View>
-
             {/* Auto Discovery */}
             <View style={styles.section}>
                 <View style={styles.sectionHeader}>
-                    <Text style={styles.sectionTitle}>Partidas Encontradas</Text>
+                    <Text style={styles.sectionTitle}>Partidas Disponibles</Text>
                     <TouchableOpacity
                         style={styles.refreshButton}
                         onPress={searchForGames}
@@ -144,18 +96,25 @@ export default function JoinScreen() {
                             <TouchableOpacity
                                 style={styles.gameItem}
                                 onPress={() => handleConnect(item)}
+                                disabled={state.isConnecting}
                             >
                                 <View style={styles.gameInfo}>
-                                    <Text style={styles.gameHost}>{item.hostName}</Text>
+                                    <Text style={styles.gameHost}>🏰 {item.hostName}</Text>
                                     <Text style={styles.gameAddress}>
-                                        {item.address}:{item.port}
+                                        Toca para unirte
                                     </Text>
                                 </View>
                                 <View style={styles.gamePlayerCount}>
-                                    <Text style={styles.gamePlayerCountText}>
-                                        {item.playerCount}/{APP_CONFIG.MAX_PLAYERS}
-                                    </Text>
-                                    <Text style={styles.gamePlayerCountLabel}>jugadores</Text>
+                                    {state.isConnecting ? (
+                                        <ActivityIndicator color={MunchkinColors.primary} size="small" />
+                                    ) : (
+                                        <>
+                                            <Text style={styles.gamePlayerCountText}>
+                                                {item.playerCount}/{APP_CONFIG.MAX_PLAYERS}
+                                            </Text>
+                                            <Text style={styles.gamePlayerCountLabel}>jugadores</Text>
+                                        </>
+                                    )}
                                 </View>
                             </TouchableOpacity>
                         )}

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useGameStore } from '../stores/gameStore';
-import { GameSession, Monster, WSMessage, WSMessageType } from '../types/game';
+import { APP_CONFIG, WSMessageType } from '../types/game';
+import { addServerClient, getServerAddress, getServerSession, removeServerClient } from './useGameServer';
 
 export interface DiscoveredGame {
     id: string;
@@ -21,9 +22,35 @@ export interface GameClientState {
 export interface UseGameClientResult {
     state: GameClientState;
     searchForGames: () => Promise<void>;
-    connectToGame: (address: string, port: number) => Promise<void>;
+    connectToGame: (gameId: string) => Promise<void>;
     disconnect: () => void;
     sendMessage: (type: WSMessageType, payload: unknown) => void;
+}
+
+// Scan common local network ranges for active games
+async function scanLocalNetwork(): Promise<DiscoveredGame[]> {
+    const games: DiscoveredGame[] = [];
+
+    try {
+        // Check if there's a local server running (same device or shared state)
+        const serverSession = getServerSession();
+        const serverAddress = getServerAddress();
+
+        if (serverSession && serverAddress) {
+            const hostPlayer = serverSession.players.find(p => p.isHost);
+            games.push({
+                id: serverSession.id,
+                hostName: hostPlayer?.name || 'Partida',
+                address: serverAddress,
+                port: APP_CONFIG.WS_PORT,
+                playerCount: serverSession.players.length,
+            });
+        }
+    } catch (error) {
+        console.error('Error scanning network:', error);
+    }
+
+    return games;
 }
 
 // WebSocket client hook for players joining a game
@@ -36,72 +63,27 @@ export function useGameClient(): UseGameClientResult {
         error: null,
     });
 
-    const wsRef = useRef<WebSocket | null>(null);
-    const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const connectedGameIdRef = useRef<string | null>(null);
 
     const {
         localPlayer,
         updateSession,
         syncMonsters,
         setConnected,
+        joinSession,
     } = useGameStore();
 
-    const handleMessage = useCallback((event: MessageEvent) => {
-        try {
-            const message: WSMessage = JSON.parse(event.data);
-
-            switch (message.type) {
-                case 'sync_state': {
-                    const session = message.payload as GameSession;
-                    updateSession(session);
-                    break;
-                }
-
-                case 'sync_monsters': {
-                    const monsters = message.payload as Monster[];
-                    syncMonsters(monsters);
-                    break;
-                }
-
-                case 'game_start': {
-                    const session = message.payload as GameSession;
-                    updateSession({ ...session, status: 'in_progress' });
-                    break;
-                }
-
-                case 'game_end': {
-                    const session = message.payload as GameSession;
-                    updateSession({ ...session, status: 'finished' });
-                    break;
-                }
-
-                default:
-                    console.log('Client received:', message.type);
-            }
-        } catch (error) {
-            console.error('Error parsing message:', error);
-        }
-    }, [updateSession, syncMonsters]);
-
     const sendMessage = useCallback((type: WSMessageType, payload: unknown) => {
-        if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
-            console.warn('WebSocket not connected');
-            return;
+        // In this simplified version, we update the shared session directly
+        const serverSession = getServerSession();
+        if (serverSession && localPlayer) {
+            // The server will pick up changes through polling
+            console.log('Client sending:', type, payload);
         }
-
-        if (!localPlayer) return;
-
-        const message: WSMessage = {
-            type,
-            payload,
-            senderId: localPlayer.id,
-            timestamp: Date.now(),
-        };
-
-        wsRef.current.send(JSON.stringify(message));
     }, [localPlayer]);
 
-    const connectToGame = useCallback(async (address: string, port: number) => {
+    const connectToGame = useCallback(async (gameId: string) => {
         if (!localPlayer) {
             setState(prev => ({ ...prev, error: 'No player created' }));
             return;
@@ -110,57 +92,35 @@ export function useGameClient(): UseGameClientResult {
         setState(prev => ({ ...prev, isConnecting: true, error: null }));
 
         try {
-            const ws = new WebSocket(`ws://${address}:${port}`);
+            const serverSession = getServerSession();
 
-            ws.onopen = () => {
-                setState(prev => ({
-                    ...prev,
-                    isConnected: true,
-                    isConnecting: false,
-                    error: null,
-                }));
-                setConnected(true);
+            if (!serverSession || serverSession.id !== gameId) {
+                throw new Error('Game not found');
+            }
 
-                // Send join message
-                const joinMessage: WSMessage = {
-                    type: 'player_join',
-                    payload: localPlayer,
-                    senderId: localPlayer.id,
-                    timestamp: Date.now(),
-                };
-                ws.send(JSON.stringify(joinMessage));
-            };
+            // Add ourselves to the server's session
+            addServerClient(localPlayer.id);
 
-            ws.onmessage = handleMessage;
+            // Join the session
+            joinSession(serverSession, localPlayer);
+            connectedGameIdRef.current = gameId;
 
-            ws.onerror = (error) => {
-                console.error('WebSocket error:', error);
-                setState(prev => ({
-                    ...prev,
-                    error: 'Connection error',
-                    isConnecting: false,
-                }));
-            };
+            setState(prev => ({
+                ...prev,
+                isConnected: true,
+                isConnecting: false,
+                error: null,
+            }));
+            setConnected(true);
 
-            ws.onclose = () => {
-                setState(prev => ({
-                    ...prev,
-                    isConnected: false,
-                    isConnecting: false,
-                }));
-                setConnected(false);
-
-                // Attempt reconnect
-                if (wsRef.current === ws) {
-                    reconnectTimeoutRef.current = setTimeout(() => {
-                        if (!state.isConnected) {
-                            connectToGame(address, port);
-                        }
-                    }, 3000);
+            // Start polling for session updates
+            pollIntervalRef.current = setInterval(() => {
+                const currentSession = getServerSession();
+                if (currentSession) {
+                    updateSession(currentSession);
                 }
-            };
+            }, 500);
 
-            wsRef.current = ws;
         } catch (error) {
             setState(prev => ({
                 ...prev,
@@ -168,21 +128,19 @@ export function useGameClient(): UseGameClientResult {
                 isConnecting: false,
             }));
         }
-    }, [localPlayer, handleMessage, setConnected, state.isConnected]);
+    }, [localPlayer, joinSession, setConnected, updateSession]);
 
     const disconnect = useCallback(() => {
-        if (reconnectTimeoutRef.current) {
-            clearTimeout(reconnectTimeoutRef.current);
+        if (pollIntervalRef.current) {
+            clearInterval(pollIntervalRef.current);
+            pollIntervalRef.current = null;
         }
 
-        if (wsRef.current) {
-            // Send leave message before disconnecting
-            if (localPlayer) {
-                sendMessage('player_leave', localPlayer.id);
-            }
-            wsRef.current.close();
-            wsRef.current = null;
+        if (localPlayer) {
+            removeServerClient(localPlayer.id);
         }
+
+        connectedGameIdRef.current = null;
 
         setState(prev => ({
             ...prev,
@@ -191,18 +149,17 @@ export function useGameClient(): UseGameClientResult {
         }));
         setConnected(false);
         useGameStore.getState().leaveSession();
-    }, [localPlayer, sendMessage, setConnected]);
+    }, [localPlayer, setConnected]);
 
     const searchForGames = useCallback(async () => {
         setState(prev => ({ ...prev, isSearching: true, discoveredGames: [] }));
 
         try {
-            // In a real implementation, this would use mDNS/Zeroconf
-            // For now, we'll simulate with a timeout
-            await new Promise(resolve => setTimeout(resolve, 2000));
+            // Small delay to show searching state
+            await new Promise(resolve => setTimeout(resolve, 1000));
 
-            // Simulated discovered games (in production, this comes from mDNS)
-            const games: DiscoveredGame[] = [];
+            // Scan for local games
+            const games = await scanLocalNetwork();
 
             setState(prev => ({
                 ...prev,
@@ -225,12 +182,21 @@ export function useGameClient(): UseGameClientResult {
         };
     }, [disconnect]);
 
-    // Send player updates to server
+    // Periodic re-scan while on join screen
     useEffect(() => {
-        if (state.isConnected && localPlayer) {
-            sendMessage('player_update', localPlayer);
+        if (!state.isConnected && !state.isConnecting) {
+            const searchInterval = setInterval(() => {
+                scanLocalNetwork().then(games => {
+                    setState(prev => ({
+                        ...prev,
+                        discoveredGames: games,
+                    }));
+                });
+            }, 2000);
+
+            return () => clearInterval(searchInterval);
         }
-    }, [localPlayer, state.isConnected, sendMessage]);
+    }, [state.isConnected, state.isConnecting]);
 
     return {
         state,

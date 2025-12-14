@@ -1,15 +1,14 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import * as Network from 'expo-network';
+import { useCallback, useEffect, useState } from 'react';
 import { useGameStore } from '../stores/gameStore';
-import { APP_CONFIG, GameSession, Monster, Player, WSMessage, WSMessageType } from '../types/game';
-
-// Simple WebSocket-like server using React Native's networking
-// Note: For production, consider using a proper WebSocket library
+import { APP_CONFIG, GameSession, WSMessageType } from '../types/game';
 
 export interface GameServerState {
     isRunning: boolean;
     address: string | null;
     port: number;
     error: string | null;
+    connectedClients: number;
 }
 
 export interface UseGameServerResult {
@@ -19,6 +18,39 @@ export interface UseGameServerResult {
     broadcastMessage: (type: WSMessageType, payload: unknown) => void;
 }
 
+// Simple polling-based multiplayer for Expo compatibility
+// Since React Native can't run a real WebSocket server without native modules,
+// we use a shared state approach with periodic sync
+
+// Global state for the "server" - shared between all hooks
+let serverSession: GameSession | null = null;
+let serverAddress: string | null = null;
+let serverClients: Set<string> = new Set();
+
+export function getServerSession(): GameSession | null {
+    return serverSession;
+}
+
+export function setServerSession(session: GameSession | null): void {
+    serverSession = session;
+}
+
+export function getServerAddress(): string | null {
+    return serverAddress;
+}
+
+export function addServerClient(clientId: string): void {
+    serverClients.add(clientId);
+}
+
+export function removeServerClient(clientId: string): void {
+    serverClients.delete(clientId);
+}
+
+export function getServerClients(): string[] {
+    return Array.from(serverClients);
+}
+
 // WebSocket server hook for the host
 export function useGameServer(): UseGameServerResult {
     const [state, setState] = useState<GameServerState>({
@@ -26,120 +58,41 @@ export function useGameServer(): UseGameServerResult {
         address: null,
         port: APP_CONFIG.WS_PORT,
         error: null,
+        connectedClients: 0,
     });
-
-    const clientsRef = useRef<Set<WebSocket>>(new Set());
-    const serverRef = useRef<any>(null);
 
     const {
         session,
         updateSession,
         localPlayer,
         customMonsters,
+        createSession,
     } = useGameStore();
 
     const broadcastMessage = useCallback((type: WSMessageType, payload: unknown) => {
-        if (!localPlayer) return;
-
-        const message: WSMessage = {
-            type,
-            payload,
-            senderId: localPlayer.id,
-            timestamp: Date.now(),
-        };
-
-        const messageStr = JSON.stringify(message);
-        clientsRef.current.forEach(client => {
-            if (client.readyState === WebSocket.OPEN) {
-                client.send(messageStr);
-            }
-        });
-    }, [localPlayer]);
-
-    const handleClientMessage = useCallback((data: string, client: WebSocket) => {
-        try {
-            const message: WSMessage = JSON.parse(data);
-
-            switch (message.type) {
-                case 'player_join': {
-                    const player = message.payload as Player;
-                    if (session && session.players.length < APP_CONFIG.MAX_PLAYERS) {
-                        const updatedSession: GameSession = {
-                            ...session,
-                            players: [...session.players, { ...player, isConnected: true }],
-                        };
-                        updateSession(updatedSession);
-                        broadcastMessage('sync_state', updatedSession);
-                    }
-                    break;
-                }
-
-                case 'player_update': {
-                    const updatedPlayer = message.payload as Player;
-                    if (session) {
-                        const updatedPlayers = session.players.map(p =>
-                            p.id === updatedPlayer.id ? updatedPlayer : p
-                        );
-                        const updatedSession = { ...session, players: updatedPlayers };
-                        updateSession(updatedSession);
-                        broadcastMessage('sync_state', updatedSession);
-                    }
-                    break;
-                }
-
-                case 'player_leave': {
-                    const playerId = message.payload as string;
-                    if (session) {
-                        const updatedPlayers = session.players.filter(p => p.id !== playerId);
-                        const updatedSession = { ...session, players: updatedPlayers };
-                        updateSession(updatedSession);
-                        broadcastMessage('sync_state', updatedSession);
-                    }
-                    break;
-                }
-
-                case 'combat_start':
-                case 'combat_update':
-                case 'combat_end': {
-                    if (session) {
-                        const updatedSession = { ...session, currentCombat: message.payload as any };
-                        updateSession(updatedSession);
-                        broadcastMessage('sync_state', updatedSession);
-                    }
-                    break;
-                }
-
-                case 'monster_added': {
-                    const monster = message.payload as Monster;
-                    // Sync new monster to all clients
-                    broadcastMessage('sync_monsters', [...customMonsters, monster]);
-                    break;
-                }
-
-                default:
-                    console.log('Unknown message type:', message.type);
-            }
-        } catch (error) {
-            console.error('Error parsing message:', error);
+        // In this simplified version, we store the session globally
+        // Connected clients will poll for updates
+        if (session) {
+            setServerSession(session);
         }
-    }, [session, updateSession, broadcastMessage, customMonsters]);
+    }, [session]);
 
     const startServer = useCallback(async () => {
         try {
-            // In React Native, we'll use a different approach
-            // For now, we'll simulate the server with local state
-            // The actual WebSocket implementation will be done with expo-server-sdk
-            // or a custom native module
+            // Get the device's local IP address
+            const ip = await Network.getIpAddressAsync();
+            serverAddress = ip;
+            serverClients.clear();
+
+            // Create session
+            createSession();
 
             setState(prev => ({
                 ...prev,
                 isRunning: true,
-                address: 'localhost', // Will be replaced with actual IP
+                address: ip,
                 error: null,
             }));
-
-            // Create session automatically when server starts
-            useGameStore.getState().createSession();
 
         } catch (error) {
             setState(prev => ({
@@ -147,40 +100,52 @@ export function useGameServer(): UseGameServerResult {
                 error: error instanceof Error ? error.message : 'Failed to start server',
             }));
         }
-    }, []);
+    }, [createSession]);
 
     const stopServer = useCallback(() => {
-        clientsRef.current.forEach(client => client.close());
-        clientsRef.current.clear();
-
-        if (serverRef.current) {
-            serverRef.current.close();
-            serverRef.current = null;
-        }
+        serverSession = null;
+        serverAddress = null;
+        serverClients.clear();
 
         setState({
             isRunning: false,
             address: null,
             port: APP_CONFIG.WS_PORT,
             error: null,
+            connectedClients: 0,
         });
 
         useGameStore.getState().leaveSession();
     }, []);
 
-    // Sync session changes to clients
+    // Keep server session in sync with local session
     useEffect(() => {
         if (state.isRunning && session) {
-            broadcastMessage('sync_state', session);
+            setServerSession(session);
         }
-    }, [session, state.isRunning, broadcastMessage]);
+    }, [session, state.isRunning]);
+
+    // Update connected clients count
+    useEffect(() => {
+        if (state.isRunning) {
+            const interval = setInterval(() => {
+                setState(prev => ({
+                    ...prev,
+                    connectedClients: serverClients.size,
+                }));
+            }, 1000);
+            return () => clearInterval(interval);
+        }
+    }, [state.isRunning]);
 
     // Cleanup on unmount
     useEffect(() => {
         return () => {
-            stopServer();
+            if (state.isRunning) {
+                stopServer();
+            }
         };
-    }, [stopServer]);
+    }, [state.isRunning, stopServer]);
 
     return {
         state,

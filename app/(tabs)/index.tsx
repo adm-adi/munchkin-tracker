@@ -6,6 +6,7 @@ import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
   Alert,
+  Image,
   Modal,
   SafeAreaView,
   StatusBar,
@@ -80,9 +81,13 @@ export default function HomeScreen() {
       <View style={styles.content}>
         {/* Logo/Title */}
         <View style={styles.header}>
-          <Text style={styles.title}>🗡️ Munchkin</Text>
+          <Image
+            source={require('@/assets/images/munchkin-logo.png')}
+            style={styles.logo}
+            resizeMode="contain"
+          />
+          <Text style={styles.title}>Munchkin</Text>
           <Text style={styles.subtitle}>Tracker</Text>
-          <Text style={styles.version}>v1.0.0</Text>
         </View>
 
         {/* Player Info */}
@@ -194,6 +199,11 @@ const styles = StyleSheet.create({
   header: {
     alignItems: 'center',
     marginBottom: Spacing.xxl,
+  },
+  logo: {
+    width: 180,
+    height: 180,
+    marginBottom: Spacing.md,
   },
   title: {
     fontSize: 48,

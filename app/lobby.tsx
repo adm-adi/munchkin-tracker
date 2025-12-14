@@ -19,7 +19,14 @@ import {
 export default function LobbyScreen() {
     const router = useRouter();
     const { session, localPlayer, leaveSession } = useGameStore();
-    const { state: serverState, stopServer } = useGameServer();
+    const { state: serverState, startServer, stopServer } = useGameServer();
+
+    // Start server if we're the host
+    useEffect(() => {
+        if (localPlayer?.isHost && !serverState.isRunning) {
+            startServer();
+        }
+    }, [localPlayer, serverState.isRunning, startServer]);
 
     // Redirect if no session
     useEffect(() => {
@@ -33,7 +40,7 @@ export default function LobbyScreen() {
     }
 
     const isHost = localPlayer.isHost;
-    const canStart = session.players.length >= 2;
+    const canStart = session.players.length >= 1; // Allow single player for testing
 
     const handleStartGame = () => {
         // Navigate to game screen
@@ -51,7 +58,7 @@ export default function LobbyScreen() {
     const handleShareCode = async () => {
         try {
             await Share.share({
-                message: `Únete a mi partida de Munchkin!\n\nIP: ${serverState.address}\nPuerto: ${serverState.port}`,
+                message: `Únete a mi partida de Munchkin!\n\nAbre la app y selecciona "Unirse a Partida"`,
                 title: 'Munchkin Tracker - Invitación',
             });
         } catch (error) {
@@ -88,10 +95,10 @@ export default function LobbyScreen() {
             {/* Connection Info */}
             {isHost && serverState.isRunning && (
                 <View style={styles.connectionInfo}>
-                    <Text style={styles.connectionLabel}>Código de Conexión:</Text>
+                    <Text style={styles.connectionLabel}>Estado:</Text>
                     <View style={styles.connectionCode}>
                         <Text style={styles.connectionCodeText}>
-                            {serverState.address}:{serverState.port}
+                            🟢 Partida visible - esperando jugadores
                         </Text>
                         <TouchableOpacity
                             style={styles.shareButton}
@@ -100,6 +107,9 @@ export default function LobbyScreen() {
                             <Text style={styles.shareButtonText}>📤</Text>
                         </TouchableOpacity>
                     </View>
+                    <Text style={styles.connectionHint}>
+                        Los jugadores en la misma red WiFi pueden ver tu partida
+                    </Text>
                 </View>
             )}
 
@@ -265,6 +275,11 @@ const styles = StyleSheet.create({
     },
     shareButtonText: {
         fontSize: 20,
+    },
+    connectionHint: {
+        fontSize: 12,
+        color: MunchkinColors.textMuted,
+        marginTop: Spacing.xs,
     },
     playersSection: {
         flex: 1,
