@@ -116,6 +116,40 @@ export const es = {
     winner: '¡{name} ha ganado!',
     play_again: 'Jugar de nuevo',
 
+    // Stats
+    stats_title: 'Estadísticas',
+    stats_luckiest: 'Jugador con más suerte',
+    stats_wins: 'Victorias',
+    stats_losses: 'Derrotas',
+    stats_monsters: 'Monstruos derrotados',
+    stats_highest_level: 'Nivel máximo',
+    stats_games_played: 'Partidas jugadas',
+    stats_recent_games: 'Partidas recientes',
+    stats_empty: 'Aún no hay estadísticas',
+    stats_play_hint: 'Juega algunas partidas para ver tus rankings',
+
+    // Curses
+    curse_active: 'Maldición activa',
+    curse_removed: 'Maldición eliminada',
+    curse_flee_penalty: 'Penalización a huir',
+    curse_combat_penalty: 'Penalización en combate',
+    curse_add: 'Añadir maldición',
+    curse_remove: 'Quitar maldición',
+
+    // Abilities
+    ability_race: 'Habilidad de raza',
+    ability_class: 'Habilidad de clase',
+    ability_elf_flee: 'Elfo: +1 para huir',
+    ability_warrior_tie: 'Guerrero: Empates ganan',
+    ability_cleric_undead: 'Clérigo: +3 vs No Muertos',
+    ability_orc_kills: 'Orco: +{count} (monstruos derrotados)',
+
+    // History
+    history_title: 'Historial de Partidas',
+    history_empty: 'No hay partidas registradas',
+    history_players: '{count} jugadores',
+    history_duration: 'Duración: {duration}',
+
     // Errors
     error_connection: 'No se pudo conectar',
     error_game_full: 'La partida está llena',
