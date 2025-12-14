@@ -1,6 +1,8 @@
 import { MunchkinColors, Radius, Spacing } from '@/constants/theme';
+import { useSounds } from '@/src/hooks/useSounds';
 import { t } from '@/src/i18n';
 import { useGameStore } from '@/src/stores/gameStore';
+import { useThemeStore } from '@/src/stores/themeStore';
 import { APP_CONFIG } from '@/src/types/game';
 import Constants from 'expo-constants';
 import { useRouter } from 'expo-router';
@@ -11,6 +13,7 @@ import {
     SafeAreaView,
     ScrollView,
     StyleSheet,
+    Switch,
     Text,
     TouchableOpacity,
     View,
@@ -19,6 +22,8 @@ import {
 export default function SettingsScreen() {
     const router = useRouter();
     const { reset, getAllMonsters, customMonsters } = useGameStore();
+    const { isDarkMode, toggleTheme } = useThemeStore();
+    const { enabled: soundEnabled, setEnabled: setSoundEnabled, volume, setVolume } = useSounds();
 
     const appVersion = Constants.expoConfig?.version || '1.0.0';
 
@@ -116,6 +121,37 @@ export default function SettingsScreen() {
                     <View style={styles.infoRow}>
                         <Text style={styles.infoLabel}>Monstruos personalizados</Text>
                         <Text style={styles.infoValue}>{customMonsters.length}</Text>
+                    </View>
+                </View>
+
+                {/* Appearance & Sound */}
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>Apariencia y Sonido</Text>
+
+                    <View style={styles.toggleRow}>
+                        <View style={styles.toggleInfo}>
+                            <Text style={styles.menuIcon}>🌙</Text>
+                            <Text style={styles.menuText}>Modo oscuro</Text>
+                        </View>
+                        <Switch
+                            value={isDarkMode}
+                            onValueChange={toggleTheme}
+                            trackColor={{ false: '#767577', true: MunchkinColors.primary }}
+                            thumbColor={isDarkMode ? MunchkinColors.primaryDark : '#f4f3f4'}
+                        />
+                    </View>
+
+                    <View style={styles.toggleRow}>
+                        <View style={styles.toggleInfo}>
+                            <Text style={styles.menuIcon}>🔊</Text>
+                            <Text style={styles.menuText}>Sonidos y vibración</Text>
+                        </View>
+                        <Switch
+                            value={soundEnabled}
+                            onValueChange={setSoundEnabled}
+                            trackColor={{ false: '#767577', true: MunchkinColors.primary }}
+                            thumbColor={soundEnabled ? MunchkinColors.primaryDark : '#f4f3f4'}
+                        />
                     </View>
                 </View>
 
@@ -274,5 +310,19 @@ const styles = StyleSheet.create({
         color: MunchkinColors.textSecondary,
         lineHeight: 20,
         marginBottom: Spacing.sm,
+    },
+    toggleRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        backgroundColor: MunchkinColors.backgroundCard,
+        borderRadius: Radius.md,
+        padding: Spacing.md,
+        marginBottom: Spacing.sm,
+    },
+    toggleInfo: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: Spacing.sm,
     },
 });

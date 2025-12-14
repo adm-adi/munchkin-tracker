@@ -5,7 +5,7 @@
 
 import { Platform } from 'react-native';
 
-// Munchkin themed colors
+// Munchkin themed colors - DARK THEME
 export const MunchkinColors = {
   // Primary colors - Fantasy gold/brown theme
   primary: '#D4AF37',      // Gold
@@ -54,6 +54,65 @@ export const MunchkinColors = {
   classThief: '#6b7280',
   classBard: '#ec4899',
   classRanger: '#10b981',
+};
+
+// Munchkin themed colors - LIGHT THEME
+export const MunchkinColorsLight = {
+  // Primary colors - Same gold theme
+  primary: '#B8860B',      // Darker Gold for light mode
+  primaryDark: '#996B04',  // Even darker
+  secondary: '#8B4513',    // Saddle Brown
+  secondaryLight: '#A0522D', // Sienna
+
+  // Background colors
+  backgroundDark: '#f8f9fa',      // Light gray
+  backgroundMedium: '#e9ecef',    // Medium gray
+  backgroundLight: '#dee2e6',     // Darker gray
+  backgroundCard: '#ffffff',      // White card
+
+  // Accent colors
+  accent: '#dc3545',        // Red accent
+  success: '#198754',       // Green for victory
+  danger: '#dc3545',        // Red for defeat
+  warning: '#fd7e14',       // Orange for warnings
+  info: '#0d6efd',          // Blue for info
+
+  // Text colors
+  textPrimary: '#212529',
+  textSecondary: '#6c757d',
+  textMuted: '#adb5bd',
+  border: '#dee2e6',
+
+  // Combat colors
+  playerStrength: '#198754',
+  monsterStrength: '#dc3545',
+  helperStrength: '#0d6efd',
+
+  // Level colors
+  level1: '#198754',
+  level5: '#fd7e14',
+  level10: '#dc3545',
+
+  // Race/Class colors - slightly darker for light mode
+  raceElf: '#198754',
+  raceDwarf: '#8B4513',
+  raceHalfling: '#6c9a3a',
+  raceOrc: '#0f5132',
+  raceGnome: '#5c2d91',
+  classWarrior: '#b02a37',
+  classWizard: '#0a58ca',
+  classCleric: '#cc7a00',
+  classThief: '#5c636a',
+  classBard: '#c01f56',
+  classRanger: '#0d8957',
+};
+
+// Theme type for type safety
+export type ThemeColors = typeof MunchkinColors;
+
+// Get theme colors based on mode
+export const getThemeColors = (isDark: boolean): ThemeColors => {
+  return isDark ? MunchkinColors : MunchkinColorsLight;
 };
 
 export const Colors = {

@@ -141,7 +141,13 @@ export type WSMessageType =
     | 'game_end'
     | 'sync_state'
     | 'sync_monsters'
-    | 'monster_added';
+    | 'monster_added'
+    // New v1.4 sync messages
+    | 'turn_change'
+    | 'timer_sync'
+    | 'dice_roll'
+    | 'level_change'
+    | 'victory';
 
 // WebSocket message structure
 export interface WSMessage {
