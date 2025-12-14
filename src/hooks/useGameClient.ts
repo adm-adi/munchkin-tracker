@@ -148,13 +148,13 @@ export function useGameClient(): UseGameClientResult {
         setState(prev => ({ ...prev, isConnecting: true, error: null }));
 
         try {
-            // In a real WebSocket implementation, we would connect here.
-            // For this shared-state sim, we check if the server is running on this "network"
+            // Check if there's a server running that we can connect to
+            // In actual network mode, we'd use WebSocket to connect to ip:port
+            // For shared-state simulation, we check if ANY server is running
             const serverSession = getServerSession();
-            const serverAddr = getServerAddress();
 
-            // Simulate network check
-            if (serverSession && serverAddr === ip) {
+            // If a server is running, allow connection (simulated same-device or LAN)
+            if (serverSession) {
                 addServerClient(localPlayer.id);
                 joinSession(serverSession, localPlayer);
                 connectedGameIdRef.current = serverSession.id;
@@ -178,13 +178,13 @@ export function useGameClient(): UseGameClientResult {
                     }
                 }, 500);
             } else {
-                throw new Error('No game found at address');
+                throw new Error('No active game found');
             }
 
         } catch (error) {
             setState(prev => ({
                 ...prev,
-                error: 'Could not connect to host',
+                error: 'No se encontró partida activa. ¿El host ha creado la partida?',
                 isConnecting: false,
             }));
         }
