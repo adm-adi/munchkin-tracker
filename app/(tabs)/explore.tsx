@@ -18,20 +18,41 @@ import {
   View,
 } from 'react-native';
 
-// Player Card Component
-function PlayerCard({ player, isLocal, isCurrentTurn = false }: { player: Player; isLocal: boolean; isCurrentTurn?: boolean }) {
+// Player Card Component with death state
+const PlayerCard = React.memo(function PlayerCard({
+  player,
+  isLocal,
+  isCurrentTurn = false
+}: {
+  player: Player;
+  isLocal: boolean;
+  isCurrentTurn?: boolean;
+}) {
   const combatStrength = player.level + player.gearBonus;
+  const isDead = player.isDead;
 
   return (
-    <View style={[styles.playerCard, isLocal && styles.localPlayerCard, isCurrentTurn && styles.currentTurnCard]}>
-      <View style={styles.playerHeader}>
+    <View style={[
+      styles.playerCard,
+      isLocal && styles.localPlayerCard,
+      isCurrentTurn && styles.currentTurnCard,
+      isDead && styles.deadPlayerCard
+    ]}>
+      {isDead && (
+        <View style={styles.deadOverlay}>
+          <Text style={styles.deadSkull}>💀</Text>
+          <Text style={styles.deadText}>MUERTO</Text>
+        </View>
+      )}
+
+      <View style={[styles.playerHeader, isDead && styles.dimmed]}>
         <Text style={styles.playerName}>
           {player.name} {player.isHost ? '👑' : ''}
         </Text>
         {isLocal && <Text style={styles.youBadge}>TÚ</Text>}
       </View>
 
-      <View style={styles.statsRow}>
+      <View style={[styles.statsRow, isDead && styles.dimmed]}>
         <View style={styles.statBox}>
           <Text style={styles.statLabel}>Nivel</Text>
           <Text style={[styles.statValue, { color: getLevelColor(player.level) }]}>
@@ -52,7 +73,7 @@ function PlayerCard({ player, isLocal, isCurrentTurn = false }: { player: Player
         </View>
       </View>
 
-      <View style={styles.traitsRow}>
+      <View style={[styles.traitsRow, isDead && styles.dimmed]}>
         <View style={[styles.trait, player.race && styles.traitActive]}>
           <Text style={styles.traitLabel}>
             {player.race?.nameEs || 'Humano'}
@@ -66,7 +87,7 @@ function PlayerCard({ player, isLocal, isCurrentTurn = false }: { player: Player
       </View>
     </View>
   );
-}
+});
 
 function getLevelColor(level: number): string {
   if (level <= 3) return MunchkinColors.level1;
@@ -76,12 +97,13 @@ function getLevelColor(level: number): string {
 
 export default function GameScreen() {
   const router = useRouter();
-  const { session, localPlayer, nextTurn, rollDice } = useGameStore();
+  const { session, localPlayer, nextTurn, rollDice, respawnPlayer } = useGameStore();
   const { recordDiceRoll, processGameEnd, initializePlayer } = useStatsStore();
   const colors = useThemeColors();
   const [showVictory, setShowVictory] = useState(false);
   const [showDefeat, setShowDefeat] = useState(false);
   const [lastDiceRoll, setLastDiceRoll] = useState<number | null>(null);
+  const [showRespawn, setShowRespawn] = useState(false);
 
   // Initialize player stats when game starts
   useEffect(() => {
@@ -89,6 +111,20 @@ export default function GameScreen() {
       initializePlayer(localPlayer.id, localPlayer.name, localPlayer.avatar);
     }
   }, [localPlayer, initializePlayer]);
+
+  // Auto-respawn dead player when their turn starts
+  useEffect(() => {
+    if (session && localPlayer && localPlayer.isDead) {
+      if (session.currentTurnPlayerId === localPlayer.id) {
+        // It's the dead player's turn - respawn them!
+        setShowRespawn(true);
+        setTimeout(() => {
+          respawnPlayer(localPlayer.id);
+          setShowRespawn(false);
+        }, 2000);
+      }
+    }
+  }, [session?.currentTurnPlayerId, localPlayer, respawnPlayer]);
 
   // Check for winner and process game end
   useEffect(() => {
@@ -648,5 +684,36 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     color: MunchkinColors.backgroundDark,
+  },
+  // Dead player styles
+  deadPlayerCard: {
+    opacity: 0.7,
+    borderColor: MunchkinColors.danger,
+    borderWidth: 2,
+    position: 'relative',
+  },
+  deadOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    borderRadius: Radius.lg,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  deadSkull: {
+    fontSize: 40,
+  },
+  deadText: {
+    color: MunchkinColors.danger,
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginTop: Spacing.xs,
+  },
+  dimmed: {
+    opacity: 0.4,
   },
 });

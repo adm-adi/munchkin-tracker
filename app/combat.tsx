@@ -1,4 +1,5 @@
 import { MunchkinColors, Radius, Spacing } from '@/constants/theme';
+import { DeathOverlay, FleeRollUI } from '@/src/components/CombatDeath';
 import { searchMonsters } from '@/src/data/monsters';
 import { calculateMonsterStrength, calculatePlayerStrength, useGameStore } from '@/src/stores/gameStore';
 import { CombatMonster, Monster, Player } from '@/src/types/game';
@@ -30,10 +31,13 @@ export default function CombatScreen() {
         resolveCombat,
         cancelCombat,
         getAllMonsters,
+        killPlayer,
     } = useGameStore();
 
     const [showMonsterModal, setShowMonsterModal] = useState(false);
     const [showHelperModal, setShowHelperModal] = useState(false);
+    const [showFleeUI, setShowFleeUI] = useState(false);
+    const [showDeathOverlay, setShowDeathOverlay] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
 
     // Start combat if not already started
@@ -103,6 +107,52 @@ export default function CombatScreen() {
 
     const handleCancel = () => {
         cancelCombat();
+        router.back();
+    };
+
+    // Check if any monster's bad stuff is death
+    const isBadStuffDeath = combat?.monsters.some(
+        m => m.monster.badStuff?.toLowerCase().includes('muerte') ||
+            m.monster.badStuff?.toLowerCase().includes('mueres') ||
+            m.monster.badStuff?.toLowerCase().includes('morirás')
+    ) || false;
+
+    const combinedBadStuff = combat?.monsters.map(m => m.monster.badStuff).filter(Boolean).join('\n• ') || '';
+
+    const handleFleeAttempt = () => {
+        setShowFleeUI(true);
+    };
+
+    const handleFleeSuccess = () => {
+        resolveCombat(false); // Fled = not victory but no bad stuff
+        router.back();
+    };
+
+    const handleFleeFail = () => {
+        if (isBadStuffDeath && localPlayer) {
+            // Kill the main player and any helpers
+            killPlayer(mainPlayer.id);
+            helpers.forEach(h => killPlayer(h.id));
+            setShowDeathOverlay(true);
+        } else {
+            // Just show bad stuff
+            Alert.alert(
+                'Huida Fallida',
+                `No has podido huir.\n\nMal Rollo:\n• ${combinedBadStuff}`,
+                [{
+                    text: 'Entendido',
+                    onPress: () => {
+                        resolveCombat(false);
+                        router.back();
+                    }
+                }]
+            );
+        }
+    };
+
+    const handleDeathDismiss = () => {
+        setShowDeathOverlay(false);
+        resolveCombat(false);
         router.back();
     };
 
@@ -202,11 +252,19 @@ export default function CombatScreen() {
             {/* Actions */}
             <View style={styles.actions}>
                 <TouchableOpacity
+                    style={[styles.actionButton, styles.fleeButton]}
+                    onPress={handleFleeAttempt}
+                    disabled={!combat?.monsters.length}
+                >
+                    <Text style={styles.actionButtonText}>🏃 Huir</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
                     style={[styles.actionButton, styles.defeatButton]}
                     onPress={handleDefeat}
                     disabled={!combat?.monsters.length}
                 >
-                    <Text style={styles.actionButtonText}>Huir/Derrota</Text>
+                    <Text style={styles.actionButtonText}>💀 Derrota</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -214,9 +272,26 @@ export default function CombatScreen() {
                     onPress={handleVictory}
                     disabled={!isWinning || !combat?.monsters.length}
                 >
-                    <Text style={styles.actionButtonText}>¡Victoria!</Text>
+                    <Text style={styles.actionButtonText}>🏆 Victoria</Text>
                 </TouchableOpacity>
             </View>
+
+            {/* Flee Roll UI */}
+            <FleeRollUI
+                visible={showFleeUI}
+                onFleeSuccess={handleFleeSuccess}
+                onFleeFail={handleFleeFail}
+                onClose={() => setShowFleeUI(false)}
+                monsterBadStuff={combinedBadStuff}
+                isBadStuffDeath={isBadStuffDeath}
+            />
+
+            {/* Death Overlay */}
+            <DeathOverlay
+                visible={showDeathOverlay}
+                onDismiss={handleDeathDismiss}
+                playerName={localPlayer?.name || ''}
+            />
 
             {/* Monster Selection Modal */}
             <Modal
@@ -657,5 +732,8 @@ const styles = StyleSheet.create({
         color: MunchkinColors.textMuted,
         textAlign: 'center',
         padding: Spacing.lg,
+    },
+    fleeButton: {
+        backgroundColor: MunchkinColors.warning,
     },
 });

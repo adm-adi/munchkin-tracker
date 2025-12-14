@@ -81,6 +81,10 @@ export interface Player {
     isHost: boolean;
     isConnected: boolean;
     avatar?: string; // Avatar image ID
+    // Death system
+    isDead: boolean;
+    deathTurn?: number; // Turn when player died (to track respawn)
+    isFleeingCombat?: boolean; // Currently rolling to flee
 }
 
 // Combat status

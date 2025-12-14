@@ -71,6 +71,11 @@ interface GameState {
     // Dice
     rollDice: (reason?: string) => number;
 
+    // Death system
+    killPlayer: (playerId: string) => void;
+    respawnPlayer: (playerId: string) => void;
+    setPlayerFleeingStatus: (playerId: string, isFleeing: boolean) => void;
+
     // Connection
     setHostMode: (isHost: boolean, address?: string) => void;
     setConnected: (connected: boolean) => void;
@@ -106,6 +111,7 @@ export const useGameStore = create<GameState>()(
                     sex: 'male',
                     isHost: false,
                     isConnected: true,
+                    isDead: false,
                 };
                 set({ localPlayer: player });
                 return player;
@@ -450,6 +456,96 @@ export const useGameStore = create<GameState>()(
                 }
 
                 return value;
+            },
+
+            // Death system actions
+            killPlayer: (playerId: string) => {
+                const { session, localPlayer } = get();
+                if (!session) return;
+
+                const updatedPlayers = session.players.map(p => {
+                    if (p.id === playerId) {
+                        // Player dies: loses all gear, keeps level/race/class
+                        return {
+                            ...p,
+                            isDead: true,
+                            deathTurn: session.turnNumber,
+                            gearBonus: 0, // Lose all equipment
+                            isFleeingCombat: false,
+                        };
+                    }
+                    return p;
+                });
+
+                set({
+                    session: { ...session, players: updatedPlayers }
+                });
+
+                // Update local player if they died
+                if (localPlayer?.id === playerId) {
+                    set({
+                        localPlayer: {
+                            ...localPlayer,
+                            isDead: true,
+                            deathTurn: session.turnNumber,
+                            gearBonus: 0,
+                            isFleeingCombat: false,
+                        }
+                    });
+                }
+            },
+
+            respawnPlayer: (playerId: string) => {
+                const { session, localPlayer } = get();
+                if (!session) return;
+
+                const updatedPlayers = session.players.map(p => {
+                    if (p.id === playerId) {
+                        return {
+                            ...p,
+                            isDead: false,
+                            deathTurn: undefined,
+                        };
+                    }
+                    return p;
+                });
+
+                set({
+                    session: { ...session, players: updatedPlayers }
+                });
+
+                // Update local player if they respawned
+                if (localPlayer?.id === playerId) {
+                    set({
+                        localPlayer: {
+                            ...localPlayer,
+                            isDead: false,
+                            deathTurn: undefined,
+                        }
+                    });
+                }
+            },
+
+            setPlayerFleeingStatus: (playerId: string, isFleeing: boolean) => {
+                const { session, localPlayer } = get();
+                if (!session) return;
+
+                const updatedPlayers = session.players.map(p => {
+                    if (p.id === playerId) {
+                        return { ...p, isFleeingCombat: isFleeing };
+                    }
+                    return p;
+                });
+
+                set({
+                    session: { ...session, players: updatedPlayers }
+                });
+
+                if (localPlayer?.id === playerId) {
+                    set({
+                        localPlayer: { ...localPlayer, isFleeingCombat: isFleeing }
+                    });
+                }
             },
 
             reset: () => {

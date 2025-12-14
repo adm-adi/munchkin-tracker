@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 
 import { MunchkinColors, MunchkinColorsLight } from '@/constants/theme';
+import { ErrorBoundary } from '@/src/components/ErrorBoundary';
 import { ThemeProvider } from '@/src/contexts/ThemeContext';
 import { useThemeStore } from '@/src/stores/themeStore';
 
@@ -59,9 +60,12 @@ function RootLayoutNav() {
 
 export default function RootLayout() {
   return (
-    <ThemeProvider>
-      <RootLayoutNav />
-    </ThemeProvider>
+    <ErrorBoundary>
+      <ThemeProvider>
+        <RootLayoutNav />
+      </ThemeProvider>
+    </ErrorBoundary>
   );
 }
+
 
