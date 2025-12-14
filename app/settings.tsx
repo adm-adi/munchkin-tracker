@@ -321,6 +321,7 @@ const styles = StyleSheet.create({
         marginBottom: Spacing.sm,
     },
     toggleInfo: {
+        flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
         gap: Spacing.sm,

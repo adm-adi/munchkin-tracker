@@ -309,7 +309,9 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
     },
     connectionCodeText: {
-        fontSize: 18,
+        flex: 1,
+        flexShrink: 1,
+        fontSize: 16,
         fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
         color: MunchkinColors.primary,
         fontWeight: 'bold',
