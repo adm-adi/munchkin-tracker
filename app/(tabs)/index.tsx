@@ -85,7 +85,7 @@ export default function HomeScreen() {
         {/* Logo/Title */}
         <View style={styles.header}>
           <Image
-            source={require('@/assets/images/munchkin-logo.png')}
+            source={require('@/assets/images/skeleton_menu.png')}
             style={styles.logo}
             resizeMode="contain"
           />

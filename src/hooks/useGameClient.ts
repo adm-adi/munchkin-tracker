@@ -1,7 +1,11 @@
+/**
+ * Real WebSocket client for connecting to host device over network.
+ */
+
 import { useCallback, useEffect, useRef, useState } from 'react';
+import TcpSocket from 'react-native-tcp-socket';
 import { useGameStore } from '../stores/gameStore';
-import { APP_CONFIG, WSMessageType } from '../types/game';
-import { addServerClient, getServerAddress, getServerSession, removeServerClient } from './useGameServer';
+import { GameSession, WSMessage, WSMessageType } from '../types/game';
 
 export interface DiscoveredGame {
     id: string;
@@ -30,33 +34,6 @@ export interface UseGameClientResult {
     sendMessage: (type: WSMessageType, payload: unknown) => void;
 }
 
-// Scan common local network ranges for active games
-async function scanLocalNetwork(): Promise<DiscoveredGame[]> {
-    const games: DiscoveredGame[] = [];
-
-    try {
-        // Check if there's a local server running (same device or shared state)
-        const serverSession = getServerSession();
-        const serverAddress = getServerAddress();
-
-        if (serverSession && serverAddress) {
-            const hostPlayer = serverSession.players.find(p => p.isHost);
-            games.push({
-                id: serverSession.id,
-                hostName: hostPlayer?.name || 'Partida',
-                address: serverAddress,
-                port: APP_CONFIG.WS_PORT,
-                playerCount: serverSession.players.length,
-            });
-        }
-    } catch (error) {
-        console.error('Error scanning network:', error);
-    }
-
-    return games;
-}
-
-// WebSocket client hook for players joining a game
 export function useGameClient(): UseGameClientResult {
     const [state, setState] = useState<GameClientState>({
         isConnected: false,
@@ -68,136 +45,143 @@ export function useGameClient(): UseGameClientResult {
         isReconnecting: false,
     });
 
-    const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const socketRef = useRef<TcpSocket.Socket | null>(null);
     const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const connectedGameIdRef = useRef<string | null>(null);
+    const connectedAddressRef = useRef<{ ip: string; port: number } | null>(null);
+    const messageBuffer = useRef<string>('');
     const maxReconnectAttempts = 5;
 
     const {
         localPlayer,
         updateSession,
-        syncMonsters,
         setConnected,
-        joinSession,
     } = useGameStore();
 
+    // Send message to server
     const sendMessage = useCallback((type: WSMessageType, payload: unknown) => {
-        // In this simplified version, we update the shared session directly
-        const serverSession = getServerSession();
-        if (serverSession && localPlayer) {
-            // The server will pick up changes through polling
-            console.log('Client sending:', type, payload);
+        if (!socketRef.current || !localPlayer) return;
+
+        const message: WSMessage = {
+            type,
+            payload,
+            senderId: localPlayer.id,
+            timestamp: Date.now(),
+        };
+
+        try {
+            socketRef.current.write(JSON.stringify(message) + '\n');
+        } catch (e) {
+            console.warn('Failed to send message:', e);
         }
     }, [localPlayer]);
 
-    const connectToGame = useCallback(async (gameId: string) => {
+    // Handle incoming message from server
+    const handleServerMessage = useCallback((message: WSMessage) => {
+        switch (message.type) {
+            case 'sync_state': {
+                const session = message.payload as GameSession;
+                updateSession(session);
+                break;
+            }
+            // Other message types can be handled here if needed
+        }
+    }, [updateSession]);
+
+    // Connect to server at IP:port
+    const connectToDirectAddress = useCallback(async (ip: string, port: number) => {
         if (!localPlayer) {
-            setState(prev => ({ ...prev, error: 'No player created' }));
+            setState(prev => ({ ...prev, error: 'No hay jugador creado' }));
             return;
         }
 
         setState(prev => ({ ...prev, isConnecting: true, error: null }));
 
         try {
-            const serverSession = getServerSession();
+            // Create TCP socket connection
+            const socket = TcpSocket.createConnection(
+                { host: ip, port },
+                () => {
+                    console.log('Connected to server:', ip, port);
 
-            if (!serverSession || serverSession.id !== gameId) {
-                throw new Error('Game not found');
-            }
+                    // Send join message
+                    const joinMessage: WSMessage = {
+                        type: 'player_join',
+                        payload: localPlayer,
+                        senderId: localPlayer.id,
+                        timestamp: Date.now(),
+                    };
+                    socket.write(JSON.stringify(joinMessage) + '\n');
 
-            // Add ourselves to the server's session
-            addServerClient(localPlayer.id);
-
-            // Join the session
-            joinSession(serverSession, localPlayer);
-            connectedGameIdRef.current = gameId;
-
-            setState(prev => ({
-                ...prev,
-                isConnected: true,
-                isConnecting: false,
-                error: null,
-            }));
-            setConnected(true);
-
-            // Start polling for session updates with connection health check
-            pollIntervalRef.current = setInterval(() => {
-                const currentSession = getServerSession();
-                if (currentSession) {
-                    updateSession(currentSession);
-                    // Reset reconnect attempts on successful poll
-                    setState(prev => ({ ...prev, reconnectAttempts: 0, isReconnecting: false }));
-                } else if (connectedGameIdRef.current) {
-                    // Session lost - trigger reconnection
-                    handleConnectionLost();
+                    setState(prev => ({
+                        ...prev,
+                        isConnected: true,
+                        isConnecting: false,
+                        error: null,
+                        reconnectAttempts: 0,
+                    }));
+                    setConnected(true);
+                    connectedAddressRef.current = { ip, port };
                 }
-            }, 500);
+            );
 
-        } catch (error) {
-            setState(prev => ({
-                ...prev,
-                error: error instanceof Error ? error.message : 'Failed to connect',
-                isConnecting: false,
-            }));
-        }
-    }, [localPlayer, joinSession, setConnected, updateSession]);
+            socketRef.current = socket;
 
-    const connectToDirectAddress = useCallback(async (ip: string, port: number) => {
-        if (!localPlayer) return;
+            // Handle incoming data
+            socket.on('data', (data) => {
+                try {
+                    // Handle potential message fragmentation
+                    messageBuffer.current += data.toString();
+                    const messages = messageBuffer.current.split('\n');
 
-        setState(prev => ({ ...prev, isConnecting: true, error: null }));
+                    // Keep incomplete message in buffer
+                    messageBuffer.current = messages.pop() || '';
 
-        try {
-            // Check if there's a server running that we can connect to
-            // In actual network mode, we'd use WebSocket to connect to ip:port
-            // For shared-state simulation, we check if ANY server is running
-            const serverSession = getServerSession();
+                    messages.filter(Boolean).forEach(msgStr => {
+                        try {
+                            const msg = JSON.parse(msgStr) as WSMessage;
+                            handleServerMessage(msg);
+                        } catch (e) {
+                            console.warn('Failed to parse message:', msgStr);
+                        }
+                    });
+                } catch (e) {
+                    console.warn('Error processing data:', e);
+                }
+            });
 
-            // If a server is running, allow connection (simulated same-device or LAN)
-            if (serverSession) {
-                addServerClient(localPlayer.id);
-                joinSession(serverSession, localPlayer);
-                connectedGameIdRef.current = serverSession.id;
+            // Handle connection close
+            socket.on('close', () => {
+                console.log('Disconnected from server');
+                handleConnectionLost();
+            });
 
+            // Handle errors
+            socket.on('error', (error) => {
+                console.error('Socket error:', error);
                 setState(prev => ({
                     ...prev,
-                    isConnected: true,
+                    error: 'Error de conexión: ' + (error.message || 'Desconocido'),
                     isConnecting: false,
-                    error: null,
+                    isConnected: false,
                 }));
-                setConnected(true);
-
-                // Start polling
-                pollIntervalRef.current = setInterval(() => {
-                    const currentSession = getServerSession();
-                    if (currentSession) {
-                        updateSession(currentSession);
-                        setState(prev => ({ ...prev, reconnectAttempts: 0, isReconnecting: false }));
-                    } else if (connectedGameIdRef.current) {
-                        handleConnectionLost();
-                    }
-                }, 500);
-            } else {
-                throw new Error('No active game found');
-            }
+            });
 
         } catch (error) {
+            console.error('Connection failed:', error);
             setState(prev => ({
                 ...prev,
-                error: 'No se encontró partida activa. ¿El host ha creado la partida?',
+                error: 'No se pudo conectar al host. ¿Está la partida activa?',
                 isConnecting: false,
             }));
         }
-    }, [localPlayer, joinSession, setConnected, updateSession]);
+    }, [localPlayer, setConnected, handleServerMessage]);
 
-    // Handle connection lost - attempt to reconnect
+    // Handle connection lost - attempt reconnection
     const handleConnectionLost = useCallback(() => {
-        const gameId = connectedGameIdRef.current;
-        if (!gameId) return;
+        const address = connectedAddressRef.current;
 
         setState(prev => {
             if (prev.reconnectAttempts >= maxReconnectAttempts) {
-                // Max attempts reached - disconnect fully
                 return {
                     ...prev,
                     isConnected: false,
@@ -207,80 +191,107 @@ export function useGameClient(): UseGameClientResult {
             }
             return {
                 ...prev,
+                isConnected: false,
                 isReconnecting: true,
                 reconnectAttempts: prev.reconnectAttempts + 1,
             };
         });
 
-        // Try to reconnect with exponential backoff
-        const delay = Math.min(1000 * Math.pow(2, state.reconnectAttempts), 10000);
-        reconnectTimeoutRef.current = setTimeout(() => {
-            const serverSession = getServerSession();
-            if (serverSession && serverSession.id === gameId) {
-                // Session recovered
-                updateSession(serverSession);
-                setState(prev => ({
-                    ...prev,
-                    isConnected: true,
-                    isReconnecting: false,
-                    reconnectAttempts: 0,
-                    error: null,
-                }));
-            }
-        }, delay);
-    }, [state.reconnectAttempts, updateSession]);
-
-    const disconnect = useCallback(() => {
-        if (pollIntervalRef.current) {
-            clearInterval(pollIntervalRef.current);
-            pollIntervalRef.current = null;
+        if (address && state.reconnectAttempts < maxReconnectAttempts) {
+            // Exponential backoff
+            const delay = Math.min(1000 * Math.pow(2, state.reconnectAttempts), 10000);
+            reconnectTimeoutRef.current = setTimeout(() => {
+                connectToDirectAddress(address.ip, address.port);
+            }, delay);
         }
+    }, [state.reconnectAttempts, connectToDirectAddress]);
 
+    // Connect to discovered game
+    const connectToGame = useCallback(async (gameId: string) => {
+        const game = state.discoveredGames.find(g => g.id === gameId);
+        if (game) {
+            await connectToDirectAddress(game.address, game.port);
+        } else {
+            setState(prev => ({ ...prev, error: 'Partida no encontrada' }));
+        }
+    }, [state.discoveredGames, connectToDirectAddress]);
+
+    // Disconnect from server
+    const disconnect = useCallback(() => {
         if (reconnectTimeoutRef.current) {
             clearTimeout(reconnectTimeoutRef.current);
             reconnectTimeoutRef.current = null;
         }
 
-        if (localPlayer) {
-            removeServerClient(localPlayer.id);
+        if (socketRef.current) {
+            // Send leave message
+            if (localPlayer) {
+                try {
+                    sendMessage('player_leave', { playerId: localPlayer.id });
+                } catch (e) {
+                    // Ignore
+                }
+            }
+
+            try {
+                socketRef.current.destroy();
+            } catch (e) {
+                // Ignore
+            }
+            socketRef.current = null;
         }
 
-        connectedGameIdRef.current = null;
+        connectedAddressRef.current = null;
+        messageBuffer.current = '';
 
-        setState(prev => ({
-            ...prev,
+        setState({
             isConnected: false,
             isConnecting: false,
-            isReconnecting: false,
+            discoveredGames: [],
+            isSearching: false,
+            error: null,
             reconnectAttempts: 0,
-        }));
+            isReconnecting: false,
+        });
         setConnected(false);
         useGameStore.getState().leaveSession();
-    }, [localPlayer, setConnected]);
+    }, [localPlayer, setConnected, sendMessage]);
 
+    // Search for games (placeholder - could use UDP broadcast)
     const searchForGames = useCallback(async () => {
         setState(prev => ({ ...prev, isSearching: true, discoveredGames: [] }));
 
-        try {
-            // Small delay to show searching state
-            await new Promise(resolve => setTimeout(resolve, 1000));
+        // Note: Actual game discovery would require UDP broadcast
+        // For now, games are joined via QR code scanning
+        await new Promise(resolve => setTimeout(resolve, 1000));
 
-            // Scan for local games
-            const games = await scanLocalNetwork();
-
-            setState(prev => ({
-                ...prev,
-                isSearching: false,
-                discoveredGames: games,
-            }));
-        } catch (error) {
-            setState(prev => ({
-                ...prev,
-                isSearching: false,
-                error: 'Failed to search for games',
-            }));
-        }
+        setState(prev => ({
+            ...prev,
+            isSearching: false,
+        }));
     }, []);
+
+    // Send player updates when local player changes
+    useEffect(() => {
+        if (state.isConnected && localPlayer) {
+            sendMessage('player_update', {
+                playerId: localPlayer.id,
+                level: localPlayer.level,
+                gearBonus: localPlayer.gearBonus,
+                race: localPlayer.race,
+                gameClass: localPlayer.gameClass,
+                isDead: localPlayer.isDead,
+            });
+        }
+    }, [
+        state.isConnected,
+        localPlayer?.level,
+        localPlayer?.gearBonus,
+        localPlayer?.race,
+        localPlayer?.gameClass,
+        localPlayer?.isDead,
+        sendMessage,
+    ]);
 
     // Cleanup on unmount
     useEffect(() => {
@@ -288,22 +299,6 @@ export function useGameClient(): UseGameClientResult {
             disconnect();
         };
     }, [disconnect]);
-
-    // Periodic re-scan while on join screen
-    useEffect(() => {
-        if (!state.isConnected && !state.isConnecting) {
-            const searchInterval = setInterval(() => {
-                scanLocalNetwork().then(games => {
-                    setState(prev => ({
-                        ...prev,
-                        discoveredGames: games,
-                    }));
-                });
-            }, 2000);
-
-            return () => clearInterval(searchInterval);
-        }
-    }, [state.isConnected, state.isConnecting]);
 
     return {
         state,
