@@ -2,6 +2,7 @@ import { MunchkinColors, Radius, Spacing } from '@/constants/theme';
 import { DefeatOverlay, VictoryOverlay } from '@/src/components/Animations';
 import { ConnectionQR } from '@/src/components/ConnectionQR';
 import { Dice } from '@/src/components/Dice';
+import { TurnLog } from '@/src/components/TurnLog';
 import { TurnIndicator, TurnTimer } from '@/src/components/TurnTimer';
 import { useThemeColors } from '@/src/contexts/ThemeContext';
 import { useGameStore } from '@/src/stores/gameStore';
@@ -108,7 +109,7 @@ function getLevelColor(level: number): string {
 export default function GameScreen() {
   const router = useRouter();
   const { session, localPlayer, nextTurn, rollDice, respawnPlayer } = useGameStore();
-  const { recordDiceRoll, processGameEnd, initializePlayer } = useStatsStore();
+  const { recordDiceRoll, processGameEnd, initializePlayer, addLogEntry } = useStatsStore();
   const colors = useThemeColors();
   const [showVictory, setShowVictory] = useState(false);
   const [showDefeat, setShowDefeat] = useState(false);
@@ -175,8 +176,14 @@ export default function GameScreen() {
     rollDice('manual');
     if (localPlayer) {
       recordDiceRoll(localPlayer.id, value);
+      addLogEntry({
+        type: 'turn_start',
+        playerId: localPlayer.id,
+        playerName: localPlayer.name,
+        message: `${localPlayer.name} sacó un ${value} en el dado 🎲`,
+      });
     }
-  }, [localPlayer, rollDice, recordDiceRoll]);
+  }, [localPlayer, rollDice, recordDiceRoll, addLogEntry]);
 
   const handleTimeUp = useCallback(() => {
     if (session?.currentTurnPlayerId === localPlayer?.id) {
@@ -266,6 +273,9 @@ export default function GameScreen() {
             <Text style={styles.combatBannerArrow}>→</Text>
           </TouchableOpacity>
         )}
+
+        {/* Turn Log */}
+        <TurnLog maxHeight={180} />
 
         {/* Local Player (Editable) */}
         <View style={styles.localSection}>

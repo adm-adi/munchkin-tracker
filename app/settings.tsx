@@ -172,6 +172,15 @@ export default function SettingsScreen() {
 
                     <TouchableOpacity
                         style={styles.menuItem}
+                        onPress={() => router.push('/history' as any)}
+                    >
+                        <Text style={styles.menuIcon}>📜</Text>
+                        <Text style={styles.menuText}>Historial de partidas</Text>
+                        <Text style={styles.menuArrow}>→</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={styles.menuItem}
                         onPress={() => router.push('/scan-card')}
                     >
                         <Text style={styles.menuIcon}>👹</Text>
