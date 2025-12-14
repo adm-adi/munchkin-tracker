@@ -11,6 +11,7 @@ import { APP_CONFIG, Player } from '@/src/types/game';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   Animated,
   FlatList,
   LayoutAnimation,
@@ -197,9 +198,31 @@ export default function GameScreen() {
     [session?.players, session?.winnerId]
   );
 
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Wait for store hydration
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setIsLoading(false);
+    }, 500);
+    return () => clearTimeout(timeout);
+  }, []);
+
   useEffect(() => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
   }, [session?.players.length]);
+
+  // Show loading while store hydrates
+  if (isLoading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.emptyState}>
+          <ActivityIndicator size="large" color={MunchkinColors.primary} />
+          <Text style={styles.emptyText}>Cargando partida...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   if (!session || !localPlayer) {
     return (
@@ -534,6 +557,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: MunchkinColors.textSecondary,
     marginBottom: Spacing.lg,
+    textAlign: 'center',
   },
   backButton: {
     backgroundColor: MunchkinColors.primary,
