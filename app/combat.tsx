@@ -2,6 +2,7 @@ import { MunchkinColors, Radius, Spacing } from '@/constants/theme';
 import { DeathOverlay, FleeRollUI } from '@/src/components/CombatDeath';
 import { searchMonsters } from '@/src/data/monsters';
 import { calculateMonsterStrength, calculatePlayerStrength, useGameStore } from '@/src/stores/gameStore';
+import { useStatsStore } from '@/src/stores/statsStore';
 import { CombatMonster, Monster, Player } from '@/src/types/game';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
@@ -40,6 +41,7 @@ export default function CombatScreen() {
     const [showFleeUI, setShowFleeUI] = useState(false);
     const [showDeathOverlay, setShowDeathOverlay] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
+    const { addLogEntry } = useStatsStore();
 
     // Start combat if not already started
     useEffect(() => {
@@ -81,6 +83,13 @@ export default function CombatScreen() {
     };
 
     const handleVictory = () => {
+        const monstersDefeated = combat?.monsters.map(m => m.monster.name).join(', ') || '';
+        addLogEntry({
+            type: 'combat_win',
+            playerId: mainPlayer.id,
+            playerName: mainPlayer.name,
+            message: `${mainPlayer.name} venció a ${monstersDefeated} 🎉`,
+        });
         Alert.alert(
             '¡Victoria!',
             `Has derrotado a ${combat?.monsters.length || 0} monstruo(s).\n+${combat?.monsters.reduce((sum, m) => sum + m.monster.levelsGranted, 0) || 0} nivel(es)`,
@@ -94,6 +103,13 @@ export default function CombatScreen() {
     };
 
     const handleDefeat = () => {
+        const monstersNames = combat?.monsters.map(m => m.monster.name).join(', ') || '';
+        addLogEntry({
+            type: 'combat_lose',
+            playerId: mainPlayer.id,
+            playerName: mainPlayer.name,
+            message: `${mainPlayer.name} fue derrotado por ${monstersNames} 💀`,
+        });
         const badStuff = combat?.monsters.map(m => m.monster.badStuff).join('\n• ') || '';
         Alert.alert(
             'Derrota',
@@ -126,6 +142,12 @@ export default function CombatScreen() {
     };
 
     const handleFleeSuccess = () => {
+        addLogEntry({
+            type: 'combat_flee',
+            playerId: mainPlayer.id,
+            playerName: mainPlayer.name,
+            message: `${mainPlayer.name} huyó del combate 🏃`,
+        });
         resolveCombat(false); // Fled = not victory but no bad stuff
         router.back();
     };

@@ -11,6 +11,7 @@ import { APP_CONFIG, Player } from '@/src/types/game';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  Animated,
   FlatList,
   LayoutAnimation,
   Modal,
@@ -316,7 +317,18 @@ export default function GameScreen() {
         {isMyTurn && session.status === 'in_progress' && (
           <TouchableOpacity
             style={styles.passTurnButton}
-            onPress={nextTurn}
+            onPress={() => {
+              // Log turn change before passing
+              const nextIndex = (session.players.findIndex(p => p.id === localPlayer.id) + 1) % session.players.length;
+              const nextPlayer = session.players[nextIndex];
+              addLogEntry({
+                type: 'turn_end',
+                playerId: localPlayer.id,
+                playerName: localPlayer.name,
+                message: `Turno de ${nextPlayer.name} ▶️`,
+              });
+              nextTurn();
+            }}
           >
             <Text style={styles.passTurnText}>Pasar Turno ➡️</Text>
           </TouchableOpacity>
@@ -368,11 +380,42 @@ export default function GameScreen() {
   );
 }
 
-// Local Player Controls (editable)
+// Local Player Controls (editable) - with animated counters and logging
 function LocalPlayerControls({ player }: { player: Player }) {
   const { setPlayerLevel, setPlayerGear } = useGameStore();
+  const { addLogEntry } = useStatsStore();
   const router = useRouter();
   const combatStrength = player.level + player.gearBonus;
+
+  const handleLevelChange = (newLevel: number) => {
+    const oldLevel = player.level;
+    setPlayerLevel(newLevel);
+    if (newLevel > oldLevel) {
+      addLogEntry({
+        type: 'level_up',
+        playerId: player.id,
+        playerName: player.name,
+        message: `${player.name} subió a nivel ${newLevel} ⬆️`,
+      });
+    } else {
+      addLogEntry({
+        type: 'level_down',
+        playerId: player.id,
+        playerName: player.name,
+        message: `${player.name} bajó a nivel ${newLevel} ⬇️`,
+      });
+    }
+  };
+
+  const handleGearChange = (newGear: number) => {
+    setPlayerGear(newGear);
+    addLogEntry({
+      type: 'gear_change',
+      playerId: player.id,
+      playerName: player.name,
+      message: `${player.name} cambió su equipo a +${newGear} 🛡️`,
+    });
+  };
 
   return (
     <View style={styles.localPlayerCard}>
@@ -382,7 +425,7 @@ function LocalPlayerControls({ player }: { player: Player }) {
         </Text>
       </View>
 
-      {/* Editable Stats */}
+      {/* Editable Stats with Animated Counters */}
       <View style={styles.editableStats}>
         {/* Level Control */}
         <View style={styles.statControl}>
@@ -390,17 +433,17 @@ function LocalPlayerControls({ player }: { player: Player }) {
           <View style={styles.counterRow}>
             <TouchableOpacity
               style={styles.counterButton}
-              onPress={() => setPlayerLevel(player.level - 1)}
+              onPress={() => handleLevelChange(player.level - 1)}
               disabled={player.level <= 1}
             >
               <Text style={styles.counterButtonText}>−</Text>
             </TouchableOpacity>
-            <Text style={[styles.counterValue, { color: getLevelColor(player.level) }]}>
+            <Animated.Text style={[styles.counterValue, { color: getLevelColor(player.level) }]}>
               {player.level}
-            </Text>
+            </Animated.Text>
             <TouchableOpacity
               style={styles.counterButton}
-              onPress={() => setPlayerLevel(player.level + 1)}
+              onPress={() => handleLevelChange(player.level + 1)}
               disabled={player.level >= 10}
             >
               <Text style={styles.counterButtonText}>+</Text>
@@ -414,15 +457,15 @@ function LocalPlayerControls({ player }: { player: Player }) {
           <View style={styles.counterRow}>
             <TouchableOpacity
               style={styles.counterButton}
-              onPress={() => setPlayerGear(player.gearBonus - 1)}
+              onPress={() => handleGearChange(player.gearBonus - 1)}
               disabled={player.gearBonus <= 0}
             >
               <Text style={styles.counterButtonText}>−</Text>
             </TouchableOpacity>
-            <Text style={styles.counterValue}>+{player.gearBonus}</Text>
+            <Animated.Text style={styles.counterValue}>+{player.gearBonus}</Animated.Text>
             <TouchableOpacity
               style={styles.counterButton}
-              onPress={() => setPlayerGear(player.gearBonus + 1)}
+              onPress={() => handleGearChange(player.gearBonus + 1)}
             >
               <Text style={styles.counterButtonText}>+</Text>
             </TouchableOpacity>
