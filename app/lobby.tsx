@@ -120,6 +120,11 @@ export default function LobbyScreen() {
                 </View>
             )}
 
+            {/* QR Code for connection - Between Host and Players */}
+            {isHost && serverState.isRunning && (
+                <ConnectionQR port={APP_CONFIG.WS_PORT} />
+            )}
+
             {/* Players List */}
             <View style={styles.playersSection}>
                 <Text style={styles.sectionTitle}>Jugadores</Text>
@@ -147,9 +152,6 @@ export default function LobbyScreen() {
             {/* Timer Config (Host only) */}
             {isHost && (
                 <View style={styles.timerConfig}>
-                    {/* QR Code for connection */}
-                    <ConnectionQR port={APP_CONFIG.WS_PORT} />
-
                     <View style={styles.timerRow}>
                         <Text style={styles.timerLabel}>⏱️ Timer de turno</Text>
                         <Switch

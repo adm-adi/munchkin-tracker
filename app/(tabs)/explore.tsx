@@ -1,16 +1,18 @@
 import { MunchkinColors, Radius, Spacing } from '@/constants/theme';
 import { DefeatOverlay, VictoryOverlay } from '@/src/components/Animations';
+import { ConnectionQR } from '@/src/components/ConnectionQR';
 import { Dice } from '@/src/components/Dice';
 import { TurnIndicator, TurnTimer } from '@/src/components/TurnTimer';
 import { useThemeColors } from '@/src/contexts/ThemeContext';
 import { useGameStore } from '@/src/stores/gameStore';
 import { useStatsStore } from '@/src/stores/statsStore';
-import { Player } from '@/src/types/game';
+import { APP_CONFIG, Player } from '@/src/types/game';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   FlatList,
   LayoutAnimation,
+  Modal,
   Platform,
   SafeAreaView,
   ScrollView,
@@ -112,6 +114,8 @@ export default function GameScreen() {
   const [showDefeat, setShowDefeat] = useState(false);
   const [lastDiceRoll, setLastDiceRoll] = useState<number | null>(null);
   const [showRespawn, setShowRespawn] = useState(false);
+  const [showQRModal, setShowQRModal] = useState(false);
+  const isHost = localPlayer?.isHost || false;
 
   // Initialize player stats when game starts
   useEffect(() => {
@@ -219,6 +223,11 @@ export default function GameScreen() {
           <Text style={styles.headerSubtitle}>
             {session.players.length} jugadores
           </Text>
+          {isHost && (
+            <TouchableOpacity style={styles.qrButton} onPress={() => setShowQRModal(true)}>
+              <Text style={styles.qrButtonText}>📲 QR</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Turn Indicator */}
@@ -330,6 +339,21 @@ export default function GameScreen() {
           router.replace('/');
         }}
       />
+
+      {/* QR Modal for in-game sharing */}
+      <Modal visible={showQRModal} transparent animationType="fade">
+        <View style={styles.qrModalOverlay}>
+          <View style={styles.qrModalContent}>
+            <Text style={{ color: MunchkinColors.textPrimary, fontSize: 18, marginBottom: 10 }}>
+              Escanea para unirte
+            </Text>
+            <ConnectionQR port={APP_CONFIG.WS_PORT} />
+            <TouchableOpacity style={styles.qrModalClose} onPress={() => setShowQRModal(false)}>
+              <Text style={styles.qrModalCloseText}>Cerrar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -742,5 +766,40 @@ const styles = StyleSheet.create({
   },
   dimmed: {
     opacity: 0.4,
+  },
+  qrButton: {
+    backgroundColor: MunchkinColors.primary,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+    borderRadius: Radius.md,
+    marginTop: Spacing.xs,
+  },
+  qrButtonText: {
+    color: MunchkinColors.backgroundDark,
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  qrModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  qrModalContent: {
+    backgroundColor: MunchkinColors.backgroundCard,
+    padding: Spacing.xl,
+    borderRadius: Radius.xl,
+    alignItems: 'center',
+  },
+  qrModalClose: {
+    marginTop: Spacing.lg,
+    backgroundColor: MunchkinColors.danger,
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.sm,
+    borderRadius: Radius.md,
+  },
+  qrModalCloseText: {
+    color: 'white',
+    fontWeight: 'bold',
   },
 });
