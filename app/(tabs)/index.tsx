@@ -1,4 +1,6 @@
 import { MunchkinColors, Radius, Spacing } from '@/constants/theme';
+import { AvatarDisplay, AvatarPicker } from '@/src/components/AvatarPicker';
+import { Avatar } from '@/src/data/avatars';
 import { t } from '@/src/i18n';
 import { useGameStore } from '@/src/stores/gameStore';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -20,10 +22,11 @@ import {
 export default function HomeScreen() {
   const router = useRouter();
   const [showNameModal, setShowNameModal] = useState(false);
+  const [showAvatarModal, setShowAvatarModal] = useState(false);
   const [playerName, setPlayerName] = useState('');
   const [isJoining, setIsJoining] = useState(false);
 
-  const { localPlayer, createPlayer, createSession } = useGameStore();
+  const { localPlayer, createPlayer, createSession, updateLocalPlayer } = useGameStore();
 
   // Check for existing player
   useEffect(() => {
@@ -93,14 +96,19 @@ export default function HomeScreen() {
         {/* Player Info */}
         {localPlayer && (
           <View style={styles.playerInfo}>
-            <Text style={styles.playerLabel}>Jugador:</Text>
-            <TouchableOpacity
-              style={styles.playerNameButton}
-              onPress={() => setShowNameModal(true)}
-            >
-              <Text style={styles.playerName}>{localPlayer.name}</Text>
-              <Text style={styles.editIcon}>✏️</Text>
+            <TouchableOpacity onPress={() => setShowAvatarModal(true)}>
+              <AvatarDisplay avatarId={localPlayer.avatar} size={60} />
             </TouchableOpacity>
+            <View style={styles.playerDetails}>
+              <Text style={styles.playerLabel}>Jugador:</Text>
+              <TouchableOpacity
+                style={styles.playerNameButton}
+                onPress={() => setShowNameModal(true)}
+              >
+                <Text style={styles.playerName}>{localPlayer.name}</Text>
+                <Text style={styles.editIcon}>✏️</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         )}
 
@@ -132,15 +140,35 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Settings Link */}
-        <TouchableOpacity
-          style={styles.settingsButton}
-          onPress={() => router.push('/settings')}
-        >
-          <Text style={styles.settingsIcon}>⚙️</Text>
-          <Text style={styles.settingsText}>{t('settings')}</Text>
-        </TouchableOpacity>
+        {/* Bottom Buttons */}
+        <View style={styles.bottomButtons}>
+          <TouchableOpacity
+            style={styles.settingsButton}
+            onPress={() => router.push('/stats' as any)}
+          >
+            <Text style={styles.settingsIcon}>🏆</Text>
+            <Text style={styles.settingsText}>Estadísticas</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.settingsButton}
+            onPress={() => router.push('/settings')}
+          >
+            <Text style={styles.settingsIcon}>⚙️</Text>
+            <Text style={styles.settingsText}>{t('settings')}</Text>
+          </TouchableOpacity>
+        </View>
       </View>
+
+      {/* Avatar Picker Modal */}
+      <AvatarPicker
+        visible={showAvatarModal}
+        selectedId={localPlayer?.avatar}
+        onSelect={(avatar: Avatar) => {
+          updateLocalPlayer({ avatar: avatar.id });
+        }}
+        onClose={() => setShowAvatarModal(false)}
+      />
 
       {/* Name Modal */}
       <Modal
@@ -371,5 +399,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     textAlign: 'center',
+  },
+  playerDetails: {
+    marginLeft: Spacing.md,
+  },
+  bottomButtons: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: Spacing.lg,
   },
 });

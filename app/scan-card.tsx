@@ -1,6 +1,8 @@
 import { MunchkinColors, Radius, Spacing } from '@/constants/theme';
+import { CLASSES } from '@/src/data/classes';
+import { RACES } from '@/src/data/races';
 import { useGameStore } from '@/src/stores/gameStore';
-import { Monster } from '@/src/types/game';
+import { Monster, MonsterBonus } from '@/src/types/game';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
@@ -17,6 +19,17 @@ import {
     View,
 } from 'react-native';
 
+// Bonus target options
+const BONUS_TARGETS = [
+    { id: 'none', name: 'Ninguno' },
+    ...RACES.map(r => ({ id: r.id, name: r.nameEs })),
+    ...CLASSES.map(c => ({ id: c.id, name: c.nameEs })),
+    { id: 'male', name: 'Hombres' },
+    { id: 'female', name: 'Mujeres' },
+    { id: 'noClass', name: 'Sin Clase' },
+    { id: 'noRace', name: 'Humanos' },
+];
+
 export default function ScanCardScreen() {
     const router = useRouter();
     const [permission, requestPermission] = useCameraPermissions();
@@ -30,6 +43,7 @@ export default function ScanCardScreen() {
     const [monsterBadStuff, setMonsterBadStuff] = useState('');
     const [monsterTreasures, setMonsterTreasures] = useState('1');
     const [monsterLevelsGranted, setMonsterLevelsGranted] = useState('1');
+    const [monsterBonuses, setMonsterBonuses] = useState<MonsterBonus[]>([]);
 
     const { addCustomMonster } = useGameStore();
 
@@ -48,7 +62,7 @@ export default function ScanCardScreen() {
             name: monsterName.trim(),
             level,
             expansion: 'custom',
-            bonuses: [],
+            bonuses: monsterBonuses,
             badStuff: monsterBadStuff.trim() || 'Sin descripción',
             treasures,
             levelsGranted,
@@ -123,6 +137,8 @@ export default function ScanCardScreen() {
                     setMonsterTreasures={setMonsterTreasures}
                     monsterLevelsGranted={monsterLevelsGranted}
                     setMonsterLevelsGranted={setMonsterLevelsGranted}
+                    monsterBonuses={monsterBonuses}
+                    setMonsterBonuses={setMonsterBonuses}
                     onSubmit={handleManualAdd}
                 />
             </SafeAreaView>
@@ -201,6 +217,8 @@ export default function ScanCardScreen() {
                 setMonsterTreasures={setMonsterTreasures}
                 monsterLevelsGranted={monsterLevelsGranted}
                 setMonsterLevelsGranted={setMonsterLevelsGranted}
+                monsterBonuses={monsterBonuses}
+                setMonsterBonuses={setMonsterBonuses}
                 onSubmit={handleManualAdd}
             />
         </SafeAreaView>
@@ -221,6 +239,8 @@ function ManualEntryModal({
     setMonsterTreasures,
     monsterLevelsGranted,
     setMonsterLevelsGranted,
+    monsterBonuses,
+    setMonsterBonuses,
     onSubmit,
 }: {
     visible: boolean;
@@ -235,8 +255,30 @@ function ManualEntryModal({
     setMonsterTreasures: (v: string) => void;
     monsterLevelsGranted: string;
     setMonsterLevelsGranted: (v: string) => void;
+    monsterBonuses: MonsterBonus[];
+    setMonsterBonuses: (v: MonsterBonus[]) => void;
     onSubmit: () => void;
 }) {
+    const [showBonusPicker, setShowBonusPicker] = useState(false);
+    const [newBonusValue, setNewBonusValue] = useState('3');
+
+    const addBonus = (targetId: string) => {
+        if (targetId === 'none') return;
+        const target = BONUS_TARGETS.find(t => t.id === targetId);
+        if (!target) return;
+
+        const bonus: MonsterBonus = {
+            target: targetId as any,
+            value: parseInt(newBonusValue) || 3,
+        };
+        setMonsterBonuses([...monsterBonuses, bonus]);
+        setShowBonusPicker(false);
+    };
+
+    const removeBonus = (index: number) => {
+        setMonsterBonuses(monsterBonuses.filter((_, i) => i !== index));
+    };
+
     return (
         <Modal
             visible={visible}
@@ -301,6 +343,57 @@ function ManualEntryModal({
                                     placeholderTextColor={MunchkinColors.textMuted}
                                 />
                             </View>
+                        </View>
+
+                        {/* Bonuses Section */}
+                        <View style={styles.formGroup}>
+                            <Text style={styles.label}>Bonificaciones (ej: +3 vs Elfos)</Text>
+                            {monsterBonuses.map((bonus, index) => (
+                                <View key={index} style={styles.bonusRow}>
+                                    <Text style={styles.bonusText}>
+                                        +{bonus.value} vs {BONUS_TARGETS.find(t => t.id === bonus.target)?.name || bonus.target}
+                                    </Text>
+                                    <TouchableOpacity onPress={() => removeBonus(index)}>
+                                        <Text style={styles.bonusRemove}>✕</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            ))}
+
+                            {showBonusPicker ? (
+                                <View style={styles.bonusPickerContainer}>
+                                    <View style={styles.bonusValueRow}>
+                                        <Text style={styles.bonusValueLabel}>+</Text>
+                                        <TextInput
+                                            style={styles.bonusValueInput}
+                                            value={newBonusValue}
+                                            onChangeText={setNewBonusValue}
+                                            keyboardType="numeric"
+                                            placeholder="3"
+                                        />
+                                        <Text style={styles.bonusValueLabel}>vs</Text>
+                                    </View>
+                                    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                                        <View style={styles.bonusTargets}>
+                                            {BONUS_TARGETS.filter(t => t.id !== 'none').map(target => (
+                                                <TouchableOpacity
+                                                    key={target.id}
+                                                    style={styles.bonusTarget}
+                                                    onPress={() => addBonus(target.id)}
+                                                >
+                                                    <Text style={styles.bonusTargetText}>{target.name}</Text>
+                                                </TouchableOpacity>
+                                            ))}
+                                        </View>
+                                    </ScrollView>
+                                </View>
+                            ) : (
+                                <TouchableOpacity
+                                    style={styles.addBonusButton}
+                                    onPress={() => setShowBonusPicker(true)}
+                                >
+                                    <Text style={styles.addBonusText}>+ Añadir bonificación</Text>
+                                </TouchableOpacity>
+                            )}
                         </View>
 
                         <View style={styles.formGroup}>
@@ -566,5 +659,70 @@ const styles = StyleSheet.create({
         color: MunchkinColors.backgroundDark,
         fontSize: 18,
         fontWeight: 'bold',
+    },
+    bonusRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        backgroundColor: MunchkinColors.backgroundCard,
+        borderRadius: Radius.md,
+        padding: Spacing.sm,
+        marginTop: Spacing.xs,
+    },
+    bonusText: {
+        color: MunchkinColors.success,
+        fontSize: 14,
+        fontWeight: '600',
+    },
+    bonusRemove: {
+        color: MunchkinColors.danger,
+        fontSize: 18,
+        paddingHorizontal: Spacing.sm,
+    },
+    bonusPickerContainer: {
+        marginTop: Spacing.sm,
+    },
+    bonusValueRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: Spacing.sm,
+        gap: Spacing.sm,
+    },
+    bonusValueLabel: {
+        color: MunchkinColors.textPrimary,
+        fontSize: 18,
+        fontWeight: 'bold',
+    },
+    bonusValueInput: {
+        backgroundColor: MunchkinColors.backgroundCard,
+        borderRadius: Radius.md,
+        padding: Spacing.sm,
+        width: 50,
+        color: MunchkinColors.textPrimary,
+        fontSize: 16,
+        textAlign: 'center',
+    },
+    bonusTargets: {
+        flexDirection: 'row',
+        gap: Spacing.xs,
+    },
+    bonusTarget: {
+        backgroundColor: MunchkinColors.primary,
+        borderRadius: Radius.md,
+        paddingHorizontal: Spacing.md,
+        paddingVertical: Spacing.sm,
+    },
+    bonusTargetText: {
+        color: MunchkinColors.backgroundDark,
+        fontSize: 12,
+        fontWeight: '600',
+    },
+    addBonusButton: {
+        marginTop: Spacing.sm,
+        padding: Spacing.sm,
+    },
+    addBonusText: {
+        color: MunchkinColors.primary,
+        fontSize: 14,
     },
 });
