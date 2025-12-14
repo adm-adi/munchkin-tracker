@@ -1,5 +1,7 @@
 import { MunchkinColors, Radius, Spacing } from '@/constants/theme';
 import { DeathOverlay, FleeRollUI } from '@/src/components/CombatDeath';
+import { getPlayerCombatModifiers } from '@/src/data/abilities';
+import { calculateCombatModifier, calculateFleeModifier, getCurseById } from '@/src/data/curses';
 import { searchMonsters } from '@/src/data/monsters';
 import { calculateMonsterStrength, calculatePlayerStrength, useGameStore } from '@/src/stores/gameStore';
 import { useStatsStore } from '@/src/stores/statsStore';
@@ -65,6 +67,28 @@ export default function CombatScreen() {
 
     const playerStrength = combat ? calculatePlayerStrength(mainPlayer, helpers, combat) : mainPlayer.level + mainPlayer.gearBonus;
     const monsterStrength = combat ? calculateMonsterStrength(combat.monsters, combatants, combat) : 0;
+
+    // Calculate auto race/class abilities
+    const mainPlayerAbilities = getPlayerCombatModifiers(mainPlayer, {
+        monsters: combat?.monsters,
+        monstersKilled: mainPlayer.monstersKilled,
+    });
+
+    // Calculate curse modifiers
+    const activeCurses = (mainPlayer.activeCurseIds || [])
+        .map(id => getCurseById(id))
+        .filter(Boolean);
+    const curseFleeModifier = calculateFleeModifier(activeCurses as any);
+    const curseCombatModifier = calculateCombatModifier(activeCurses as any);
+
+    // Combined ability notes for display
+    const abilityNotes = [...mainPlayerAbilities.notes];
+    if (curseCombatModifier !== 0) {
+        abilityNotes.push(`Maldición: ${curseCombatModifier} combate`);
+    }
+    if (curseFleeModifier !== 0) {
+        abilityNotes.push(`Maldición: ${curseFleeModifier} huir`);
+    }
 
     const isWinning = playerStrength > monsterStrength ||
         (playerStrength === monsterStrength && combatants.some(p => p.gameClass?.id === 'warrior'));
