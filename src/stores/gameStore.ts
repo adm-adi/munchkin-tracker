@@ -113,6 +113,8 @@ export const useGameStore = create<GameState>()(
                     isHost: false,
                     isConnected: true,
                     isDead: false,
+                    monstersKilled: 0,
+                    activeCurseIds: [],
                 };
                 set({ localPlayer: player });
                 return player;

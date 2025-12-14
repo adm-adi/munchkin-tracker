@@ -85,6 +85,9 @@ export interface Player {
     isDead: boolean;
     deathTurn?: number; // Turn when player died (to track respawn)
     isFleeingCombat?: boolean; // Currently rolling to flee
+    // Ability tracking
+    monstersKilled: number; // For Orc race bonus
+    activeCurseIds: string[]; // IDs of active curses from curses.ts
 }
 
 // Combat status
