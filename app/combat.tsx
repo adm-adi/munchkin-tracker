@@ -295,6 +295,18 @@ export default function CombatScreen() {
                     </View>
                 </View>
 
+                {/* Active Abilities & Curses */}
+                {abilityNotes.length > 0 && (
+                    <View style={styles.abilitiesSection}>
+                        <Text style={styles.abilitiesSectionTitle}>⚡ Habilidades Activas</Text>
+                        {abilityNotes.map((note, index) => (
+                            <View key={index} style={styles.abilityNote}>
+                                <Text style={styles.abilityNoteText}>{note}</Text>
+                            </View>
+                        ))}
+                    </View>
+                )}
+
                 {/* Result Preview */}
                 {combat?.monsters.length ? (
                     <View style={[styles.resultPreview, isWinning ? styles.resultWin : styles.resultLose]}>
@@ -815,5 +827,29 @@ const styles = StyleSheet.create({
         color: MunchkinColors.textPrimary,
         fontWeight: 'bold',
         fontSize: 12,
+    },
+    abilitiesSection: {
+        backgroundColor: MunchkinColors.backgroundCard,
+        borderRadius: Radius.md,
+        padding: Spacing.md,
+        marginHorizontal: Spacing.lg,
+        marginBottom: Spacing.md,
+        borderWidth: 1,
+        borderColor: MunchkinColors.primary,
+    },
+    abilitiesSectionTitle: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: MunchkinColors.primary,
+        marginBottom: Spacing.sm,
+    },
+    abilityNote: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: Spacing.xs,
+    },
+    abilityNoteText: {
+        fontSize: 13,
+        color: MunchkinColors.textSecondary,
     },
 });

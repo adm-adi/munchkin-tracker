@@ -221,6 +221,73 @@ export default function SettingsScreen() {
                     </TouchableOpacity>
                 </View>
 
+                {/* Cloud Backup */}
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>☁️ Copia de Seguridad</Text>
+
+                    {isAuthenticated ? (
+                        <>
+                            <View style={styles.infoRow}>
+                                <Text style={styles.infoLabel}>Cuenta</Text>
+                                <Text style={styles.infoValue}>{userEmail}</Text>
+                            </View>
+
+                            {lastBackupTime && (
+                                <View style={styles.infoRow}>
+                                    <Text style={styles.infoLabel}>Último backup</Text>
+                                    <Text style={styles.infoValue}>
+                                        {new Date(lastBackupTime).toLocaleDateString()}
+                                    </Text>
+                                </View>
+                            )}
+
+                            <TouchableOpacity
+                                style={styles.menuItem}
+                                onPress={handleBackup}
+                                disabled={isLoading}
+                            >
+                                <Text style={styles.menuIcon}>⬆️</Text>
+                                <Text style={styles.menuText}>
+                                    {isLoading ? 'Guardando...' : 'Guardar copia'}
+                                </Text>
+                                <Text style={styles.menuArrow}>→</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={styles.menuItem}
+                                onPress={handleRestore}
+                                disabled={isLoading}
+                            >
+                                <Text style={styles.menuIcon}>⬇️</Text>
+                                <Text style={styles.menuText}>
+                                    {isLoading ? 'Restaurando...' : 'Restaurar copia'}
+                                </Text>
+                                <Text style={styles.menuArrow}>→</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={[styles.menuItem, styles.dangerItem]}
+                                onPress={handleSignOut}
+                            >
+                                <Text style={styles.menuIcon}>🚪</Text>
+                                <Text style={[styles.menuText, styles.dangerText]}>Cerrar sesión</Text>
+                            </TouchableOpacity>
+                        </>
+                    ) : (
+                        <TouchableOpacity
+                            style={styles.menuItem}
+                            onPress={signIn}
+                            disabled={isLoading}
+                        >
+                            <Text style={styles.menuIcon}>🔑</Text>
+                            <Text style={styles.menuText}>
+                                {isLoading ? 'Iniciando sesión...' : 'Iniciar sesión'}
+                            </Text>
+                            <Text style={styles.menuArrow}>→</Text>
+                        </TouchableOpacity>
+                    )}
+                </View>
+
                 {/* Data Management */}
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Datos</Text>
