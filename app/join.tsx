@@ -29,43 +29,90 @@ export default function JoinScreen() {
     } = useGameClient();
 
     const [showScanner, setShowScanner] = useState(false);
+    const [isConnecting, setIsConnecting] = useState(false);
 
+    // Delay check to allow store hydration
     useEffect(() => {
-        if (!localPlayer) {
-            router.replace('/');
-            return;
-        }
-        searchForGames();
-    }, [localPlayer]);
+        const timeout = setTimeout(() => {
+            if (!localPlayer) {
+                router.replace('/');
+            } else {
+                searchForGames();
+            }
+        }, 500);
+        return () => clearTimeout(timeout);
+    }, []);
 
     // Navigate to lobby when connected
     useEffect(() => {
         if (state.isConnected) {
+            setIsConnecting(false);
             router.replace('/lobby');
         }
     }, [state.isConnected]);
 
+    // Handle connection errors
+    useEffect(() => {
+        if (state.error && isConnecting) {
+            setIsConnecting(false);
+        }
+    }, [state.error]);
+
     const handleConnect = async (game: DiscoveredGame) => {
+        setIsConnecting(true);
         try {
             await connectToGame(game.id);
         } catch (error) {
+            setIsConnecting(false);
             Alert.alert('Error', 'No se pudo conectar a la partida');
         }
     };
 
     const handleScan = async (data: string) => {
         setShowScanner(false);
+        setIsConnecting(true);
         try {
-            const { ip, port } = JSON.parse(data);
+            const parsed = JSON.parse(data);
+            const ip = parsed.ip;
+            const port = parsed.port;
             if (ip && port) {
+                console.log('Connecting to:', ip, port);
                 await connectToDirectAddress(ip, port);
+                // Don't setIsConnecting(false) here - let the isConnected effect handle navigation
             } else {
+                setIsConnecting(false);
                 Alert.alert('Error', 'Código QR inválido');
             }
         } catch (e) {
+            setIsConnecting(false);
             Alert.alert('Error', 'Formato de QR incorrecto');
         }
     };
+
+    // Show loading while store hydrates
+    if (!localPlayer) {
+        return (
+            <SafeAreaView style={styles.container}>
+                <View style={styles.loadingContainer}>
+                    <ActivityIndicator color={MunchkinColors.primary} size="large" />
+                    <Text style={styles.loadingText}>Cargando...</Text>
+                </View>
+            </SafeAreaView>
+        );
+    }
+
+    // Show connecting overlay
+    if (isConnecting) {
+        return (
+            <SafeAreaView style={styles.container}>
+                <View style={styles.loadingContainer}>
+                    <ActivityIndicator color={MunchkinColors.primary} size="large" />
+                    <Text style={styles.loadingText}>Conectando a la partida...</Text>
+                    <Text style={styles.emptyHint}>Esto puede tardar unos segundos</Text>
+                </View>
+            </SafeAreaView>
+        );
+    }
 
     return (
         <SafeAreaView style={styles.container}>

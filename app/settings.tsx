@@ -1,4 +1,5 @@
 import { MunchkinColors, Radius, Spacing } from '@/constants/theme';
+import { useCloudBackup } from '@/src/hooks/useCloudBackup';
 import { useSounds } from '@/src/hooks/useSounds';
 import { t } from '@/src/i18n';
 import { useGameStore } from '@/src/stores/gameStore';
@@ -23,9 +24,63 @@ export default function SettingsScreen() {
     const router = useRouter();
     const { reset, getAllMonsters, customMonsters } = useGameStore();
     const { isDarkMode, toggleTheme } = useThemeStore();
-    const { enabled: soundEnabled, setEnabled: setSoundEnabled, volume, setVolume } = useSounds();
+    const { enabled: soundEnabled, setEnabled: setSoundEnabled } = useSounds();
+    const {
+        isAuthenticated,
+        userEmail,
+        isLoading,
+        lastBackupTime,
+        signIn,
+        signOut,
+        backup,
+        restore,
+    } = useCloudBackup();
 
     const appVersion = Constants.expoConfig?.version || '1.0.0';
+
+    const handleBackup = async () => {
+        if (!isAuthenticated) {
+            const success = await signIn();
+            if (!success) {
+                Alert.alert('Error', 'No se pudo iniciar sesión');
+                return;
+            }
+        }
+
+        const success = await backup();
+        if (success) {
+            Alert.alert('Éxito', 'Copia de seguridad guardada correctamente');
+        } else {
+            Alert.alert('Error', 'No se pudo guardar la copia de seguridad');
+        }
+    };
+
+    const handleRestore = async () => {
+        Alert.alert(
+            'Restaurar datos',
+            '¿Estás seguro? Esto reemplazará todos tus datos actuales.',
+            [
+                { text: 'Cancelar', style: 'cancel' },
+                {
+                    text: 'Restaurar',
+                    style: 'destructive',
+                    onPress: async () => {
+                        const success = await restore();
+                        if (success) {
+                            Alert.alert('Éxito', 'Datos restaurados. Reinicia la app para ver los cambios.');
+                        } else {
+                            Alert.alert('Error', 'No se pudo restaurar los datos');
+                        }
+                    },
+                },
+            ]
+        );
+    };
+
+    const handleSignOut = async () => {
+        await signOut();
+        Alert.alert('Sesión cerrada', 'Has cerrado sesión correctamente');
+    };
 
     const handleCheckUpdates = async () => {
         try {
