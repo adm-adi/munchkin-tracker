@@ -63,6 +63,14 @@ interface GameState {
     getAllMonsters: () => Monster[];
     syncMonsters: (monsters: Monster[]) => void;
 
+    // Turn system
+    startGame: () => void;
+    nextTurn: () => void;
+    setTimerConfig: (enabled: boolean, duration: number) => void;
+
+    // Dice
+    rollDice: (reason?: string) => number;
+
     // Connection
     setHostMode: (isHost: boolean, address?: string) => void;
     setConnected: (connected: boolean) => void;
@@ -123,6 +131,7 @@ export const useGameStore = create<GameState>()(
                 const { localPlayer } = get();
                 if (!localPlayer) throw new Error('No local player');
 
+
                 const hostPlayer = { ...localPlayer, isHost: true };
                 const session: GameSession = {
                     id: generateId(),
@@ -132,6 +141,15 @@ export const useGameStore = create<GameState>()(
                     currentCombat: null,
                     status: 'lobby',
                     winnerId: null,
+                    // Turn system
+                    currentTurnPlayerId: null,
+                    turnNumber: 0,
+                    // Timer configuration
+                    timerEnabled: false,
+                    timerDuration: 60,
+                    turnStartedAt: null,
+                    // Dice rolls
+                    diceRolls: [],
                 };
 
                 set({
@@ -360,6 +378,78 @@ export const useGameStore = create<GameState>()(
                 if (localPlayer) {
                     get().updateLocalPlayer({ isConnected: connected });
                 }
+            },
+
+            // Turn system
+            startGame: () => {
+                const { session } = get();
+                if (!session || session.players.length === 0) return;
+
+                const firstPlayer = session.players[0];
+                set({
+                    session: {
+                        ...session,
+                        status: 'in_progress',
+                        currentTurnPlayerId: firstPlayer.id,
+                        turnNumber: 1,
+                        turnStartedAt: session.timerEnabled ? Date.now() : null,
+                    }
+                });
+            },
+
+            nextTurn: () => {
+                const { session } = get();
+                if (!session) return;
+
+                const currentIndex = session.players.findIndex(
+                    p => p.id === session.currentTurnPlayerId
+                );
+                const nextIndex = (currentIndex + 1) % session.players.length;
+                const nextPlayer = session.players[nextIndex];
+
+                set({
+                    session: {
+                        ...session,
+                        currentTurnPlayerId: nextPlayer.id,
+                        turnNumber: session.turnNumber + 1,
+                        turnStartedAt: session.timerEnabled ? Date.now() : null,
+                    }
+                });
+            },
+
+            setTimerConfig: (enabled: boolean, duration: number) => {
+                const { session } = get();
+                if (!session) return;
+
+                set({
+                    session: {
+                        ...session,
+                        timerEnabled: enabled,
+                        timerDuration: duration,
+                    }
+                });
+            },
+
+            rollDice: (reason?: string) => {
+                const { session, localPlayer } = get();
+                const value = Math.floor(Math.random() * 6) + 1;
+
+                if (session && localPlayer) {
+                    const newRoll = {
+                        playerId: localPlayer.id,
+                        value,
+                        timestamp: Date.now(),
+                        reason,
+                    };
+                    set({
+                        session: {
+                            ...session,
+                            diceRolls: [...session.diceRolls, newRoll],
+                        }
+                    });
+                }
+
+                return value;
             },
 
             reset: () => {

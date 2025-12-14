@@ -36,6 +36,7 @@ export default function RootLayout() {
         <Stack.Screen name="select-race" options={{ headerShown: false, presentation: 'modal' }} />
         <Stack.Screen name="select-class" options={{ headerShown: false, presentation: 'modal' }} />
         <Stack.Screen name="scan-card" options={{ headerShown: false, presentation: 'modal' }} />
+        <Stack.Screen name="stats" options={{ headerShown: false }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
       </Stack>
       <StatusBar style="light" />

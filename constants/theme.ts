@@ -30,6 +30,7 @@ export const MunchkinColors = {
   textPrimary: '#f5f5f5',
   textSecondary: '#a0a0a0',
   textMuted: '#6b7280',
+  border: '#374151',
 
   // Combat colors
   playerStrength: '#00d26a',

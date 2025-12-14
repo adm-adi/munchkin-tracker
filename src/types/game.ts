@@ -80,6 +80,7 @@ export interface Player {
     sex: 'male' | 'female';
     isHost: boolean;
     isConnected: boolean;
+    avatar?: string; // Avatar image ID
 }
 
 // Combat status
@@ -109,6 +110,23 @@ export interface GameSession {
     currentCombat: Combat | null;
     status: SessionStatus;
     winnerId: string | null;
+    // Turn system
+    currentTurnPlayerId: string | null;
+    turnNumber: number;
+    // Timer configuration
+    timerEnabled: boolean;
+    timerDuration: number; // seconds (30, 60, 120, 300)
+    turnStartedAt: number | null; // timestamp when current turn started
+    // Dice rolls tracking (for luck stats)
+    diceRolls: DiceRoll[];
+}
+
+// Dice roll record
+export interface DiceRoll {
+    playerId: string;
+    value: number; // 1-6
+    timestamp: number;
+    reason?: string; // 'combat', 'flee', 'curse', etc.
 }
 
 // WebSocket message types
