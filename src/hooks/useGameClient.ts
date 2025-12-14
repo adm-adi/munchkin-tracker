@@ -25,6 +25,7 @@ export interface UseGameClientResult {
     state: GameClientState;
     searchForGames: () => Promise<void>;
     connectToGame: (gameId: string) => Promise<void>;
+    connectToDirectAddress: (ip: string, port: number) => Promise<void>;
     disconnect: () => void;
     sendMessage: (type: WSMessageType, payload: unknown) => void;
 }
@@ -136,6 +137,54 @@ export function useGameClient(): UseGameClientResult {
             setState(prev => ({
                 ...prev,
                 error: error instanceof Error ? error.message : 'Failed to connect',
+                isConnecting: false,
+            }));
+        }
+    }, [localPlayer, joinSession, setConnected, updateSession]);
+
+    const connectToDirectAddress = useCallback(async (ip: string, port: number) => {
+        if (!localPlayer) return;
+
+        setState(prev => ({ ...prev, isConnecting: true, error: null }));
+
+        try {
+            // In a real WebSocket implementation, we would connect here.
+            // For this shared-state sim, we check if the server is running on this "network"
+            const serverSession = getServerSession();
+            const serverAddr = getServerAddress();
+
+            // Simulate network check
+            if (serverSession && serverAddr === ip) {
+                addServerClient(localPlayer.id);
+                joinSession(serverSession, localPlayer);
+                connectedGameIdRef.current = serverSession.id;
+
+                setState(prev => ({
+                    ...prev,
+                    isConnected: true,
+                    isConnecting: false,
+                    error: null,
+                }));
+                setConnected(true);
+
+                // Start polling
+                pollIntervalRef.current = setInterval(() => {
+                    const currentSession = getServerSession();
+                    if (currentSession) {
+                        updateSession(currentSession);
+                        setState(prev => ({ ...prev, reconnectAttempts: 0, isReconnecting: false }));
+                    } else if (connectedGameIdRef.current) {
+                        handleConnectionLost();
+                    }
+                }, 500);
+            } else {
+                throw new Error('No game found at address');
+            }
+
+        } catch (error) {
+            setState(prev => ({
+                ...prev,
+                error: 'Could not connect to host',
                 isConnecting: false,
             }));
         }
@@ -260,6 +309,7 @@ export function useGameClient(): UseGameClientResult {
         state,
         searchForGames,
         connectToGame,
+        connectToDirectAddress,
         disconnect,
         sendMessage,
     };

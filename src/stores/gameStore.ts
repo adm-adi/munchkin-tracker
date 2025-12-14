@@ -54,6 +54,7 @@ interface GameState {
     removeMonsterFromCombat: (index: number) => void;
     addHelperToCombat: (playerId: string) => void;
     removeHelperFromCombat: (playerId: string) => void;
+    modifyCombatBonus: (side: 'player' | 'monster', amount: number) => void;
     resolveCombat: (victory: boolean) => void;
     cancelCombat: () => void;
 
@@ -270,6 +271,8 @@ export const useGameStore = create<GameState>()(
             addHelperToCombat: (playerId: string) => {
                 const { session } = get();
                 if (!session?.currentCombat) return;
+                // Strict rule: Only 1 helper allowed
+                if (session.currentCombat.helperIds.length >= 1) return;
                 if (session.currentCombat.helperIds.includes(playerId)) return;
 
                 const updatedCombat: Combat = {
@@ -344,6 +347,20 @@ export const useGameStore = create<GameState>()(
                 const { session } = get();
                 if (!session) return;
                 set({ session: { ...session, currentCombat: null } });
+            },
+
+            modifyCombatBonus: (side: 'player' | 'monster', amount: number) => {
+                const { session } = get();
+                if (!session?.currentCombat) return;
+
+                const combat = session.currentCombat;
+                const updatedCombat = {
+                    ...combat,
+                    playerBonus: side === 'player' ? combat.playerBonus + amount : combat.playerBonus,
+                    monstersBonus: side === 'monster' ? combat.monstersBonus + amount : combat.monstersBonus,
+                };
+
+                set({ session: { ...session, currentCombat: updatedCombat } });
             },
 
             addCustomMonster: (monster: Monster) => {

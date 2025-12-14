@@ -1,10 +1,11 @@
 import { MunchkinColors, Radius, Spacing } from '@/constants/theme';
+import { QRScanner } from '@/src/components/QRScanner';
 import { DiscoveredGame, useGameClient } from '@/src/hooks/useGameClient';
 import { t } from '@/src/i18n';
 import { useGameStore } from '@/src/stores/gameStore';
 import { APP_CONFIG } from '@/src/types/game';
 import { useRouter } from 'expo-router';
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
@@ -23,8 +24,11 @@ export default function JoinScreen() {
     const {
         state,
         searchForGames,
-        connectToGame
+        connectToGame,
+        connectToDirectAddress,
     } = useGameClient();
+
+    const [showScanner, setShowScanner] = useState(false);
 
     useEffect(() => {
         if (!localPlayer) {
@@ -46,6 +50,20 @@ export default function JoinScreen() {
             await connectToGame(game.id);
         } catch (error) {
             Alert.alert('Error', 'No se pudo conectar a la partida');
+        }
+    };
+
+    const handleScan = async (data: string) => {
+        setShowScanner(false);
+        try {
+            const { ip, port } = JSON.parse(data);
+            if (ip && port) {
+                await connectToDirectAddress(ip, port);
+            } else {
+                Alert.alert('Error', 'Código QR inválido');
+            }
+        } catch (e) {
+            Alert.alert('Error', 'Formato de QR incorrecto');
         }
     };
 
@@ -74,6 +92,13 @@ export default function JoinScreen() {
                         <Text style={styles.refreshButtonText}>🔄 Buscar</Text>
                     </TouchableOpacity>
                 </View>
+
+                <TouchableOpacity
+                    style={styles.scanButton}
+                    onPress={() => setShowScanner(true)}
+                >
+                    <Text style={styles.scanButtonText}>📷 Escanear QR</Text>
+                </TouchableOpacity>
 
                 {state.isSearching ? (
                     <View style={styles.loadingContainer}>
@@ -129,6 +154,11 @@ export default function JoinScreen() {
                     <Text style={styles.errorText}>{state.error}</Text>
                 </View>
             )}
+            <QRScanner
+                visible={showScanner}
+                onScan={handleScan}
+                onClose={() => setShowScanner(false)}
+            />
         </SafeAreaView>
     );
 }
@@ -298,5 +328,18 @@ const styles = StyleSheet.create({
     errorText: {
         color: MunchkinColors.danger,
         textAlign: 'center',
+    },
+    scanButton: {
+        backgroundColor: MunchkinColors.secondary,
+        padding: Spacing.md,
+        borderRadius: Radius.md,
+        alignItems: 'center',
+        marginHorizontal: Spacing.lg,
+        marginBottom: Spacing.md,
+    },
+    scanButtonText: {
+        color: MunchkinColors.textPrimary,
+        fontWeight: 'bold',
+        fontSize: 16,
     },
 });

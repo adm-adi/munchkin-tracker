@@ -32,6 +32,7 @@ export default function CombatScreen() {
         cancelCombat,
         getAllMonsters,
         killPlayer,
+        modifyCombatBonus,
     } = useGameStore();
 
     const [showMonsterModal, setShowMonsterModal] = useState(false);
@@ -63,7 +64,8 @@ export default function CombatScreen() {
     const playerStrength = combat ? calculatePlayerStrength(mainPlayer, helpers, combat) : mainPlayer.level + mainPlayer.gearBonus;
     const monsterStrength = combat ? calculateMonsterStrength(combat.monsters, combatants, combat) : 0;
 
-    const isWinning = playerStrength > monsterStrength;
+    const isWinning = playerStrength > monsterStrength ||
+        (playerStrength === monsterStrength && combatants.some(p => p.gameClass?.id === 'warrior'));
     const monsters = getAllMonsters();
     const filteredMonsters = searchQuery ? searchMonsters(searchQuery) : monsters;
 
@@ -180,6 +182,12 @@ export default function CombatScreen() {
                         <View style={[styles.strengthBox, isWinning && styles.winningBox]}>
                             <Text style={styles.strengthValue}>{playerStrength}</Text>
                         </View>
+                        <View style={styles.bonusControls}>
+                            <TouchableOpacity onPress={() => modifyCombatBonus('player', -1)} style={styles.bonusBtn}><Text style={styles.bonusText}>-1</Text></TouchableOpacity>
+                            <TouchableOpacity onPress={() => modifyCombatBonus('player', 1)} style={styles.bonusBtn}><Text style={styles.bonusText}>+1</Text></TouchableOpacity>
+                            <TouchableOpacity onPress={() => modifyCombatBonus('player', 3)} style={styles.bonusBtn}><Text style={styles.bonusText}>+3</Text></TouchableOpacity>
+                            <TouchableOpacity onPress={() => modifyCombatBonus('player', 5)} style={styles.bonusBtn}><Text style={styles.bonusText}>+5</Text></TouchableOpacity>
+                        </View>
 
                         {/* Combatants */}
                         <View style={styles.combatants}>
@@ -192,7 +200,7 @@ export default function CombatScreen() {
                                 />
                             ))}
 
-                            {availableHelpers.length > 0 && (
+                            {availableHelpers.length > 0 && helpers.length === 0 && (
                                 <TouchableOpacity
                                     style={styles.addButton}
                                     onPress={() => setShowHelperModal(true)}
@@ -213,6 +221,12 @@ export default function CombatScreen() {
                         <Text style={styles.sideLabel}>MONSTRUOS</Text>
                         <View style={[styles.strengthBox, !isWinning && combat?.monsters.length ? styles.winningBox : styles.losingBox]}>
                             <Text style={styles.strengthValue}>{monsterStrength}</Text>
+                        </View>
+                        <View style={styles.bonusControls}>
+                            <TouchableOpacity onPress={() => modifyCombatBonus('monster', -1)} style={styles.bonusBtn}><Text style={styles.bonusText}>-1</Text></TouchableOpacity>
+                            <TouchableOpacity onPress={() => modifyCombatBonus('monster', 1)} style={styles.bonusBtn}><Text style={styles.bonusText}>+1</Text></TouchableOpacity>
+                            <TouchableOpacity onPress={() => modifyCombatBonus('monster', 3)} style={styles.bonusBtn}><Text style={styles.bonusText}>+3</Text></TouchableOpacity>
+                            <TouchableOpacity onPress={() => modifyCombatBonus('monster', 5)} style={styles.bonusBtn}><Text style={styles.bonusText}>+5</Text></TouchableOpacity>
                         </View>
 
                         {/* Monsters */}
@@ -735,5 +749,25 @@ const styles = StyleSheet.create({
     },
     fleeButton: {
         backgroundColor: MunchkinColors.warning,
+    },
+    bonusControls: {
+        flexDirection: 'row',
+        justifyContent: 'center',
+        gap: Spacing.xs,
+        marginTop: Spacing.xs,
+        marginBottom: Spacing.sm,
+    },
+    bonusBtn: {
+        backgroundColor: MunchkinColors.backgroundCard,
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: Radius.sm,
+        borderWidth: 1,
+        borderColor: MunchkinColors.border,
+    },
+    bonusText: {
+        color: MunchkinColors.textPrimary,
+        fontWeight: 'bold',
+        fontSize: 12,
     },
 });
