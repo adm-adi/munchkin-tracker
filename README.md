@@ -38,31 +38,6 @@ Aplicación multiplayer local para llevar el control de tus partidas de Munchkin
 - **Iniciar Combate** para empezar un combate
 - Añade monstruos buscando en la base de datos o escaneando cartas
 
-## 🛠️ Desarrollo
-
-```bash
-# Clonar repositorio
-git clone https://github.com/adm-adi/munchkin-tracker.git
-cd munchkin-tracker
-
-# Instalar dependencias
-npm install
-
-# Iniciar servidor de desarrollo
-npm run android
-```
-
-## 📦 Generar APK
-
-```bash
-# Usando EAS Build
-npm install -g eas-cli
-eas login
-eas build --platform android --profile preview
-```
-
-O espera a que GitHub Actions genere el APK automáticamente al crear un tag.
-
 ## 📝 Licencia
 
 Este proyecto es de código abierto. Munchkin® es una marca registrada de Steve Jackson Games.
