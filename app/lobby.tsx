@@ -1,5 +1,6 @@
 import { MunchkinColors, Radius, Spacing } from '@/constants/theme';
 import { AvatarDisplay } from '@/src/components/AvatarPicker';
+import { ConnectionQR } from '@/src/components/ConnectionQR';
 import { useGameServer } from '@/src/hooks/useGameServer';
 import { t } from '@/src/i18n';
 import { useGameStore } from '@/src/stores/gameStore';
@@ -146,6 +147,9 @@ export default function LobbyScreen() {
             {/* Timer Config (Host only) */}
             {isHost && (
                 <View style={styles.timerConfig}>
+                    {/* QR Code for connection */}
+                    <ConnectionQR port={APP_CONFIG.WS_PORT} />
+
                     <View style={styles.timerRow}>
                         <Text style={styles.timerLabel}>⏱️ Timer de turno</Text>
                         <Switch

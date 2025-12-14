@@ -148,6 +148,47 @@ export default function GameScreen() {
     }
   }, [session?.winnerId, localPlayer?.id, session, processGameEnd]);
 
+  // Move conditional check mainly for rendering control, but keep hooks at top level
+  // We can use empty objects/arrays as fallbacks for useMemo to prevent crashes if session is null
+
+  const otherPlayers = useMemo(
+    () => session?.players.filter(p => p.id !== localPlayer?.id) || [],
+    [session?.players, localPlayer?.id]
+  );
+
+  const isMyTurn = useMemo(
+    () => session?.currentTurnPlayerId === localPlayer?.id,
+    [session?.currentTurnPlayerId, localPlayer?.id]
+  );
+
+  const currentTurnPlayer = useMemo(
+    () => session?.players.find(p => p.id === session?.currentTurnPlayerId),
+    [session?.players, session?.currentTurnPlayerId]
+  );
+
+  const handleDiceRoll = useCallback((value: number) => {
+    setLastDiceRoll(value);
+    rollDice('manual');
+    if (localPlayer) {
+      recordDiceRoll(localPlayer.id, value);
+    }
+  }, [localPlayer, rollDice, recordDiceRoll]);
+
+  const handleTimeUp = useCallback(() => {
+    if (session?.currentTurnPlayerId === localPlayer?.id) {
+      nextTurn();
+    }
+  }, [session?.currentTurnPlayerId, localPlayer?.id, nextTurn]);
+
+  const winnerName = useMemo(
+    () => session?.players.find(p => p.id === session?.winnerId)?.name || '',
+    [session?.players, session?.winnerId]
+  );
+
+  useEffect(() => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+  }, [session?.players.length]);
+
   if (!session || !localPlayer) {
     return (
       <SafeAreaView style={styles.container}>
@@ -163,47 +204,6 @@ export default function GameScreen() {
       </SafeAreaView>
     );
   }
-
-  const otherPlayers = useMemo(
-    () => session.players.filter(p => p.id !== localPlayer.id),
-    [session.players, localPlayer.id]
-  );
-
-  const isMyTurn = useMemo(
-    () => session.currentTurnPlayerId === localPlayer.id,
-    [session.currentTurnPlayerId, localPlayer.id]
-  );
-
-  const currentTurnPlayer = useMemo(
-    () => session.players.find(p => p.id === session.currentTurnPlayerId),
-    [session.players, session.currentTurnPlayerId]
-  );
-
-  const handleDiceRoll = useCallback((value: number) => {
-    setLastDiceRoll(value);
-    rollDice('manual');
-    // Record dice roll in stats
-    if (localPlayer) {
-      recordDiceRoll(localPlayer.id, value);
-    }
-  }, [localPlayer, rollDice, recordDiceRoll]);
-
-  const handleTimeUp = useCallback(() => {
-    // Auto-pass turn when timer runs out
-    if (session.currentTurnPlayerId === localPlayer?.id) {
-      nextTurn();
-    }
-  }, [session.currentTurnPlayerId, localPlayer?.id, nextTurn]);
-
-  const winnerName = useMemo(
-    () => session.players.find(p => p.id === session.winnerId)?.name || '',
-    [session.players, session.winnerId]
-  );
-
-  // Animate player list changes
-  useEffect(() => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-  }, [session.players.length]);
 
   return (
     <SafeAreaView style={styles.container}>
