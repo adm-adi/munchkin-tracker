@@ -1,25 +1,29 @@
 import { MunchkinColors, Radius, Spacing } from '@/constants/theme';
+import { AvatarDisplay } from '@/src/components/AvatarPicker';
 import { useGameServer } from '@/src/hooks/useGameServer';
 import { t } from '@/src/i18n';
 import { useGameStore } from '@/src/stores/gameStore';
 import { APP_CONFIG, Player } from '@/src/types/game';
 import { useRouter } from 'expo-router';
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     FlatList,
     Platform,
     SafeAreaView,
     Share,
     StyleSheet,
+    Switch,
     Text,
     TouchableOpacity,
-    View,
+    View
 } from 'react-native';
 
 export default function LobbyScreen() {
     const router = useRouter();
-    const { session, localPlayer, leaveSession } = useGameStore();
+    const { session, localPlayer, leaveSession, setTimerConfig, startGame } = useGameStore();
     const { state: serverState, startServer, stopServer } = useGameServer();
+    const [timerEnabled, setTimerEnabled] = useState(false);
+    const [timerDuration, setTimerDuration] = useState(60);
 
     // Start server if we're the host
     useEffect(() => {
@@ -43,7 +47,9 @@ export default function LobbyScreen() {
     const canStart = session.players.length >= 1; // Allow single player for testing
 
     const handleStartGame = () => {
-        // Navigate to game screen
+        // Save timer config and start the game
+        setTimerConfig(timerEnabled, timerDuration);
+        startGame();
         router.replace('/(tabs)/explore');
     };
 
@@ -137,6 +143,42 @@ export default function LobbyScreen() {
                 ))}
             </View>
 
+            {/* Timer Config (Host only) */}
+            {isHost && (
+                <View style={styles.timerConfig}>
+                    <View style={styles.timerRow}>
+                        <Text style={styles.timerLabel}>⏱️ Timer de turno</Text>
+                        <Switch
+                            value={timerEnabled}
+                            onValueChange={setTimerEnabled}
+                            trackColor={{ false: MunchkinColors.backgroundMedium, true: MunchkinColors.primary }}
+                            thumbColor={timerEnabled ? MunchkinColors.textPrimary : MunchkinColors.textMuted}
+                        />
+                    </View>
+                    {timerEnabled && (
+                        <View style={styles.timerDurations}>
+                            {[30, 60, 120, 300].map((duration) => (
+                                <TouchableOpacity
+                                    key={duration}
+                                    style={[
+                                        styles.timerOption,
+                                        timerDuration === duration && styles.timerOptionActive,
+                                    ]}
+                                    onPress={() => setTimerDuration(duration)}
+                                >
+                                    <Text style={[
+                                        styles.timerOptionText,
+                                        timerDuration === duration && styles.timerOptionTextActive,
+                                    ]}>
+                                        {duration < 60 ? `${duration}s` : `${duration / 60}min`}
+                                    </Text>
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+                    )}
+                </View>
+            )}
+
             {/* Actions */}
             <View style={styles.actions}>
                 {isHost ? (
@@ -172,11 +214,7 @@ function PlayerListItem({ player, index, isLocal }: { player: Player; index: num
 
     return (
         <View style={[styles.playerItem, { borderLeftColor: colors[index % colors.length] }]}>
-            <View style={styles.playerAvatar}>
-                <Text style={styles.playerAvatarText}>
-                    {player.name.charAt(0).toUpperCase()}
-                </Text>
-            </View>
+            <AvatarDisplay avatarId={player.avatar} size={44} />
             <View style={styles.playerInfo}>
                 <Text style={styles.playerName}>
                     {player.name}
@@ -386,5 +424,46 @@ const styles = StyleSheet.create({
     waitingText: {
         color: MunchkinColors.textSecondary,
         fontSize: 14,
+    },
+    timerConfig: {
+        backgroundColor: MunchkinColors.backgroundCard,
+        borderRadius: Radius.lg,
+        padding: Spacing.md,
+        marginHorizontal: Spacing.lg,
+        marginBottom: Spacing.md,
+    },
+    timerRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    timerLabel: {
+        color: MunchkinColors.textPrimary,
+        fontSize: 16,
+        fontWeight: '600',
+    },
+    timerDurations: {
+        flexDirection: 'row',
+        justifyContent: 'space-around',
+        marginTop: Spacing.md,
+        gap: Spacing.sm,
+    },
+    timerOption: {
+        flex: 1,
+        padding: Spacing.sm,
+        borderRadius: Radius.md,
+        backgroundColor: MunchkinColors.backgroundMedium,
+        alignItems: 'center',
+    },
+    timerOptionActive: {
+        backgroundColor: MunchkinColors.primary,
+    },
+    timerOptionText: {
+        color: MunchkinColors.textSecondary,
+        fontSize: 14,
+        fontWeight: '600',
+    },
+    timerOptionTextActive: {
+        color: MunchkinColors.backgroundDark,
     },
 });

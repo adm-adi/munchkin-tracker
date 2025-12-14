@@ -1,11 +1,15 @@
 import { MunchkinColors, Radius, Spacing } from '@/constants/theme';
+import { DefeatOverlay, VictoryOverlay } from '@/src/components/Animations';
+import { Dice } from '@/src/components/Dice';
+import { TurnIndicator, TurnTimer } from '@/src/components/TurnTimer';
 import { useGameStore } from '@/src/stores/gameStore';
 import { Player } from '@/src/types/game';
 import { useRouter } from 'expo-router';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   FlatList,
   SafeAreaView,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -13,11 +17,11 @@ import {
 } from 'react-native';
 
 // Player Card Component
-function PlayerCard({ player, isLocal }: { player: Player; isLocal: boolean }) {
+function PlayerCard({ player, isLocal, isCurrentTurn = false }: { player: Player; isLocal: boolean; isCurrentTurn?: boolean }) {
   const combatStrength = player.level + player.gearBonus;
 
   return (
-    <View style={[styles.playerCard, isLocal && styles.localPlayerCard]}>
+    <View style={[styles.playerCard, isLocal && styles.localPlayerCard, isCurrentTurn && styles.currentTurnCard]}>
       <View style={styles.playerHeader}>
         <Text style={styles.playerName}>
           {player.name} {player.isHost ? '👑' : ''}
@@ -70,7 +74,21 @@ function getLevelColor(level: number): string {
 
 export default function GameScreen() {
   const router = useRouter();
-  const { session, localPlayer } = useGameStore();
+  const { session, localPlayer, nextTurn, rollDice } = useGameStore();
+  const [showVictory, setShowVictory] = useState(false);
+  const [showDefeat, setShowDefeat] = useState(false);
+  const [lastDiceRoll, setLastDiceRoll] = useState<number | null>(null);
+
+  // Check for winner
+  useEffect(() => {
+    if (session?.winnerId) {
+      if (session.winnerId === localPlayer?.id) {
+        setShowVictory(true);
+      } else {
+        setShowDefeat(true);
+      }
+    }
+  }, [session?.winnerId, localPlayer?.id]);
 
   if (!session || !localPlayer) {
     return (
@@ -89,60 +107,120 @@ export default function GameScreen() {
   }
 
   const otherPlayers = session.players.filter(p => p.id !== localPlayer.id);
+  const isMyTurn = session.currentTurnPlayerId === localPlayer.id;
+  const currentTurnPlayer = session.players.find(p => p.id === session.currentTurnPlayerId);
+
+  const handleDiceRoll = (value: number) => {
+    setLastDiceRoll(value);
+    rollDice('manual');
+  };
+
+  const handleTimeUp = () => {
+    // Auto-pass turn when timer runs out
+    if (isMyTurn) {
+      nextTurn();
+    }
+  };
+
+  const winnerName = session.players.find(p => p.id === session.winnerId)?.name || '';
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Partida en Curso</Text>
-        <Text style={styles.headerSubtitle}>
-          {session.players.length} jugadores
-        </Text>
-      </View>
-
-      {/* Combat Banner */}
-      {session.currentCombat && (
-        <TouchableOpacity
-          style={styles.combatBanner}
-          onPress={() => router.push('/combat')}
-        >
-          <Text style={styles.combatBannerIcon}>⚔️</Text>
-          <View style={styles.combatBannerContent}>
-            <Text style={styles.combatBannerTitle}>¡Combate en curso!</Text>
-            <Text style={styles.combatBannerText}>
-              {session.players.find(p => p.id === session.currentCombat!.mainPlayerId)?.name}
-              {' '}vs {session.currentCombat.monsters.length} monstruo(s)
-            </Text>
+      <ScrollView>
+        {/* Header */}
+        <View style={styles.header}>
+          <View style={styles.headerRow}>
+            <Text style={styles.headerTitle}>Partida en Curso</Text>
+            <TouchableOpacity onPress={() => router.push('/stats' as any)}>
+              <Text style={styles.statsLink}>🏆</Text>
+            </TouchableOpacity>
           </View>
-          <Text style={styles.combatBannerArrow}>→</Text>
-        </TouchableOpacity>
-      )}
-
-      {/* Local Player (Editable) */}
-      <View style={styles.localSection}>
-        <Text style={styles.sectionTitle}>Tu Personaje</Text>
-        <LocalPlayerControls player={localPlayer} />
-      </View>
-
-      {/* Other Players */}
-      {otherPlayers.length > 0 && (
-        <View style={styles.othersSection}>
-          <Text style={styles.sectionTitle}>Otros Jugadores</Text>
-          <FlatList
-            data={otherPlayers}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item }) => (
-              <PlayerCard player={item} isLocal={false} />
-            )}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.playersList}
-          />
+          <Text style={styles.headerSubtitle}>
+            {session.players.length} jugadores
+          </Text>
         </View>
-      )}
+
+        {/* Turn Indicator */}
+        {session.status === 'in_progress' && session.currentTurnPlayerId && (
+          <TurnIndicator
+            currentPlayerName={currentTurnPlayer?.name || null}
+            isMyTurn={isMyTurn}
+            turnNumber={session.turnNumber}
+          />
+        )}
+
+        {/* Turn Timer */}
+        {session.timerEnabled && session.status === 'in_progress' && (
+          <TurnTimer
+            duration={session.timerDuration}
+            startedAt={session.turnStartedAt}
+            isActive={isMyTurn}
+            onTimeUp={handleTimeUp}
+          />
+        )}
+
+        {/* Combat Banner */}
+        {session.currentCombat && (
+          <TouchableOpacity
+            style={styles.combatBanner}
+            onPress={() => router.push('/combat')}
+          >
+            <Text style={styles.combatBannerIcon}>⚔️</Text>
+            <View style={styles.combatBannerContent}>
+              <Text style={styles.combatBannerTitle}>¡Combate en curso!</Text>
+              <Text style={styles.combatBannerText}>
+                {session.players.find(p => p.id === session.currentCombat!.mainPlayerId)?.name}
+                {' '}vs {session.currentCombat.monsters.length} monstruo(s)
+              </Text>
+            </View>
+            <Text style={styles.combatBannerArrow}>→</Text>
+          </TouchableOpacity>
+        )}
+
+        {/* Local Player (Editable) */}
+        <View style={styles.localSection}>
+          <Text style={styles.sectionTitle}>Tu Personaje</Text>
+          <LocalPlayerControls player={localPlayer} />
+        </View>
+
+        {/* Dice Roller */}
+        <View style={styles.diceSection}>
+          <Dice onRoll={handleDiceRoll} size={70} />
+          {lastDiceRoll && (
+            <Text style={styles.lastRollText}>
+              Última tirada: {lastDiceRoll}
+            </Text>
+          )}
+        </View>
+
+        {/* Other Players */}
+        {otherPlayers.length > 0 && (
+          <View style={styles.othersSection}>
+            <Text style={styles.sectionTitle}>Otros Jugadores</Text>
+            <FlatList
+              data={otherPlayers}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => (
+                <PlayerCard player={item} isLocal={false} isCurrentTurn={item.id === session.currentTurnPlayerId} />
+              )}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.playersList}
+            />
+          </View>
+        )}
+      </ScrollView>
 
       {/* Action Buttons */}
       <View style={styles.actions}>
+        {isMyTurn && session.status === 'in_progress' && (
+          <TouchableOpacity
+            style={styles.passTurnButton}
+            onPress={nextTurn}
+          >
+            <Text style={styles.passTurnText}>Pasar Turno ➡️</Text>
+          </TouchableOpacity>
+        )}
         {!session.currentCombat && (
           <TouchableOpacity
             style={styles.combatButton}
@@ -153,6 +231,24 @@ export default function GameScreen() {
           </TouchableOpacity>
         )}
       </View>
+
+      {/* Victory/Defeat Overlays */}
+      <VictoryOverlay
+        visible={showVictory}
+        winnerName={winnerName}
+        onClose={() => {
+          setShowVictory(false);
+          router.replace('/');
+        }}
+      />
+      <DefeatOverlay
+        visible={showDefeat}
+        winnerName={winnerName}
+        onClose={() => {
+          setShowDefeat(false);
+          router.replace('/');
+        }}
+      />
     </SafeAreaView>
   );
 }
@@ -497,5 +593,42 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: MunchkinColors.textPrimary,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  statsLink: {
+    fontSize: 28,
+  },
+  diceSection: {
+    alignItems: 'center',
+    paddingVertical: Spacing.lg,
+    backgroundColor: MunchkinColors.backgroundCard,
+    marginHorizontal: Spacing.lg,
+    borderRadius: Radius.lg,
+    marginBottom: Spacing.md,
+  },
+  lastRollText: {
+    color: MunchkinColors.textSecondary,
+    fontSize: 13,
+    marginTop: Spacing.sm,
+  },
+  currentTurnCard: {
+    borderWidth: 2,
+    borderColor: MunchkinColors.success,
+  },
+  passTurnButton: {
+    backgroundColor: MunchkinColors.success,
+    borderRadius: Radius.lg,
+    paddingVertical: Spacing.md,
+    alignItems: 'center',
+    marginBottom: Spacing.md,
+  },
+  passTurnText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: MunchkinColors.backgroundDark,
   },
 });
