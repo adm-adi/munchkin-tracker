@@ -41,17 +41,52 @@ function RootLayoutNav() {
 
   return (
     <NavigationThemeProvider value={navigationTheme}>
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="lobby" options={{ headerShown: false }} />
-        <Stack.Screen name="join" options={{ headerShown: false }} />
-        <Stack.Screen name="combat" options={{ headerShown: false, presentation: 'fullScreenModal' }} />
-        <Stack.Screen name="settings" options={{ headerShown: false }} />
-        <Stack.Screen name="select-race" options={{ headerShown: false, presentation: 'modal' }} />
-        <Stack.Screen name="select-class" options={{ headerShown: false, presentation: 'modal' }} />
-        <Stack.Screen name="scan-card" options={{ headerShown: false, presentation: 'modal' }} />
-        <Stack.Screen name="stats" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          animation: 'slide_from_right',
+          animationDuration: 250,
+        }}
+      >
+        <Stack.Screen name="(tabs)" options={{ headerShown: false, animation: 'fade' }} />
+        <Stack.Screen name="lobby" options={{ headerShown: false, animation: 'slide_from_right' }} />
+        <Stack.Screen name="join" options={{ headerShown: false, animation: 'slide_from_right' }} />
+        <Stack.Screen
+          name="combat"
+          options={{
+            headerShown: false,
+            presentation: 'fullScreenModal',
+            animation: 'slide_from_bottom',
+          }}
+        />
+        <Stack.Screen name="settings" options={{ headerShown: false, animation: 'slide_from_right' }} />
+        <Stack.Screen
+          name="select-race"
+          options={{
+            headerShown: false,
+            presentation: 'modal',
+            animation: 'slide_from_bottom',
+          }}
+        />
+        <Stack.Screen
+          name="select-class"
+          options={{
+            headerShown: false,
+            presentation: 'modal',
+            animation: 'slide_from_bottom',
+          }}
+        />
+        <Stack.Screen
+          name="scan-card"
+          options={{
+            headerShown: false,
+            presentation: 'modal',
+            animation: 'slide_from_bottom',
+          }}
+        />
+        <Stack.Screen name="stats" options={{ headerShown: false, animation: 'fade_from_bottom' }} />
+        <Stack.Screen name="history" options={{ headerShown: false, animation: 'slide_from_right' }} />
+        <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal', animation: 'fade' }} />
       </Stack>
       <StatusBar style={isDarkMode ? 'light' : 'dark'} />
     </NavigationThemeProvider>
