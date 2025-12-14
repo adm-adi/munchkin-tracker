@@ -7,16 +7,24 @@ import { useGameStore } from '@/src/stores/gameStore';
 import { useStatsStore } from '@/src/stores/statsStore';
 import { Player } from '@/src/types/game';
 import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   FlatList,
+  LayoutAnimation,
+  Platform,
   SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
+  UIManager,
+  View
 } from 'react-native';
+
+// Enable LayoutAnimation on Android
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 // Player Card Component with death state
 const PlayerCard = React.memo(function PlayerCard({
@@ -156,27 +164,46 @@ export default function GameScreen() {
     );
   }
 
-  const otherPlayers = session.players.filter(p => p.id !== localPlayer.id);
-  const isMyTurn = session.currentTurnPlayerId === localPlayer.id;
-  const currentTurnPlayer = session.players.find(p => p.id === session.currentTurnPlayerId);
+  const otherPlayers = useMemo(
+    () => session.players.filter(p => p.id !== localPlayer.id),
+    [session.players, localPlayer.id]
+  );
 
-  const handleDiceRoll = (value: number) => {
+  const isMyTurn = useMemo(
+    () => session.currentTurnPlayerId === localPlayer.id,
+    [session.currentTurnPlayerId, localPlayer.id]
+  );
+
+  const currentTurnPlayer = useMemo(
+    () => session.players.find(p => p.id === session.currentTurnPlayerId),
+    [session.players, session.currentTurnPlayerId]
+  );
+
+  const handleDiceRoll = useCallback((value: number) => {
     setLastDiceRoll(value);
     rollDice('manual');
     // Record dice roll in stats
     if (localPlayer) {
       recordDiceRoll(localPlayer.id, value);
     }
-  };
+  }, [localPlayer, rollDice, recordDiceRoll]);
 
-  const handleTimeUp = () => {
+  const handleTimeUp = useCallback(() => {
     // Auto-pass turn when timer runs out
-    if (isMyTurn) {
+    if (session.currentTurnPlayerId === localPlayer?.id) {
       nextTurn();
     }
-  };
+  }, [session.currentTurnPlayerId, localPlayer?.id, nextTurn]);
 
-  const winnerName = session.players.find(p => p.id === session.winnerId)?.name || '';
+  const winnerName = useMemo(
+    () => session.players.find(p => p.id === session.winnerId)?.name || '',
+    [session.players, session.winnerId]
+  );
+
+  // Animate player list changes
+  useEffect(() => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+  }, [session.players.length]);
 
   return (
     <SafeAreaView style={styles.container}>
