@@ -17,6 +17,8 @@ export interface GameClientState {
     discoveredGames: DiscoveredGame[];
     isSearching: boolean;
     error: string | null;
+    reconnectAttempts: number;
+    isReconnecting: boolean;
 }
 
 export interface UseGameClientResult {
@@ -61,10 +63,14 @@ export function useGameClient(): UseGameClientResult {
         discoveredGames: [],
         isSearching: false,
         error: null,
+        reconnectAttempts: 0,
+        isReconnecting: false,
     });
 
     const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const connectedGameIdRef = useRef<string | null>(null);
+    const maxReconnectAttempts = 5;
 
     const {
         localPlayer,
@@ -113,11 +119,16 @@ export function useGameClient(): UseGameClientResult {
             }));
             setConnected(true);
 
-            // Start polling for session updates
+            // Start polling for session updates with connection health check
             pollIntervalRef.current = setInterval(() => {
                 const currentSession = getServerSession();
                 if (currentSession) {
                     updateSession(currentSession);
+                    // Reset reconnect attempts on successful poll
+                    setState(prev => ({ ...prev, reconnectAttempts: 0, isReconnecting: false }));
+                } else if (connectedGameIdRef.current) {
+                    // Session lost - trigger reconnection
+                    handleConnectionLost();
                 }
             }, 500);
 
@@ -130,10 +141,55 @@ export function useGameClient(): UseGameClientResult {
         }
     }, [localPlayer, joinSession, setConnected, updateSession]);
 
+    // Handle connection lost - attempt to reconnect
+    const handleConnectionLost = useCallback(() => {
+        const gameId = connectedGameIdRef.current;
+        if (!gameId) return;
+
+        setState(prev => {
+            if (prev.reconnectAttempts >= maxReconnectAttempts) {
+                // Max attempts reached - disconnect fully
+                return {
+                    ...prev,
+                    isConnected: false,
+                    isReconnecting: false,
+                    error: 'Conexión perdida. No se pudo reconectar.',
+                };
+            }
+            return {
+                ...prev,
+                isReconnecting: true,
+                reconnectAttempts: prev.reconnectAttempts + 1,
+            };
+        });
+
+        // Try to reconnect with exponential backoff
+        const delay = Math.min(1000 * Math.pow(2, state.reconnectAttempts), 10000);
+        reconnectTimeoutRef.current = setTimeout(() => {
+            const serverSession = getServerSession();
+            if (serverSession && serverSession.id === gameId) {
+                // Session recovered
+                updateSession(serverSession);
+                setState(prev => ({
+                    ...prev,
+                    isConnected: true,
+                    isReconnecting: false,
+                    reconnectAttempts: 0,
+                    error: null,
+                }));
+            }
+        }, delay);
+    }, [state.reconnectAttempts, updateSession]);
+
     const disconnect = useCallback(() => {
         if (pollIntervalRef.current) {
             clearInterval(pollIntervalRef.current);
             pollIntervalRef.current = null;
+        }
+
+        if (reconnectTimeoutRef.current) {
+            clearTimeout(reconnectTimeoutRef.current);
+            reconnectTimeoutRef.current = null;
         }
 
         if (localPlayer) {
@@ -146,6 +202,8 @@ export function useGameClient(): UseGameClientResult {
             ...prev,
             isConnected: false,
             isConnecting: false,
+            isReconnecting: false,
+            reconnectAttempts: 0,
         }));
         setConnected(false);
         useGameStore.getState().leaveSession();
