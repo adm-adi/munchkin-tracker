@@ -5,6 +5,7 @@ import { LeaderboardCategory } from '@/src/types/stats';
 import { useRouter } from 'expo-router';
 import React from 'react';
 import {
+    Dimensions,
     SafeAreaView,
     ScrollView,
     StyleSheet,
@@ -12,6 +13,7 @@ import {
     TouchableOpacity,
     View
 } from 'react-native';
+import { PieChart } from 'react-native-chart-kit';
 
 const LEADERBOARD_CATEGORIES: { key: LeaderboardCategory; label: string; emoji: string }[] = [
     { key: 'wins', label: 'Victorias', emoji: '👑' },
@@ -21,6 +23,9 @@ const LEADERBOARD_CATEGORIES: { key: LeaderboardCategory; label: string; emoji: 
     { key: 'gamesPlayed', label: 'Partidas', emoji: '🎮' },
 ];
 
+const screenWidth = Dimensions.get('window').width;
+const CHART_COLORS = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#87CEEB'];
+
 export default function StatsScreen() {
     const router = useRouter();
     const { getLeaderboard, getLuckiestPlayer, getRecentGames, playerStats } = useStatsStore();
@@ -28,6 +33,17 @@ export default function StatsScreen() {
     const luckiest = getLuckiestPlayer();
     const recentGames = getRecentGames(5);
     const allPlayers = Object.values(playerStats);
+
+    // Prepare pie chart data for wins
+    const winsData = allPlayers
+        .filter(p => p.wins > 0)
+        .map((player, index) => ({
+            name: player.playerName.substring(0, 8),
+            wins: player.wins,
+            color: CHART_COLORS[index % CHART_COLORS.length],
+            legendFontColor: MunchkinColors.textPrimary,
+            legendFontSize: 12,
+        }));
 
     return (
         <SafeAreaView style={styles.container}>
@@ -53,6 +69,28 @@ export default function StatsScreen() {
                                 </Text>
                             </View>
                         </View>
+                    </View>
+                )}
+
+                {/* Wins Pie Chart */}
+                {winsData.length > 1 && (
+                    <View style={styles.chartCard}>
+                        <Text style={styles.sectionTitle}>📊 Victorias por Jugador</Text>
+                        <PieChart
+                            data={winsData}
+                            width={screenWidth - Spacing.lg * 2}
+                            height={180}
+                            chartConfig={{
+                                backgroundColor: MunchkinColors.backgroundCard,
+                                backgroundGradientFrom: MunchkinColors.backgroundCard,
+                                backgroundGradientTo: MunchkinColors.backgroundCard,
+                                color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
+                            }}
+                            accessor="wins"
+                            backgroundColor="transparent"
+                            paddingLeft="15"
+                            absolute
+                        />
                     </View>
                 )}
 
@@ -155,6 +193,13 @@ const styles = StyleSheet.create({
         marginBottom: Spacing.lg,
         borderWidth: 2,
         borderColor: MunchkinColors.success,
+    },
+    chartCard: {
+        backgroundColor: MunchkinColors.backgroundCard,
+        borderRadius: Radius.lg,
+        padding: Spacing.lg,
+        marginBottom: Spacing.lg,
+        alignItems: 'center',
     },
     luckContent: {
         flexDirection: 'row',
