@@ -30,7 +30,7 @@ jobs:
           java-version: "17"
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install --legacy-peer-deps
 
       - name: Setup Expo
         uses: expo/expo-github-action@v8
